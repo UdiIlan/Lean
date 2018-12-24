@@ -71,13 +71,16 @@ namespace QuantConnect.Algorithm.CSharp
         /// </summary>
         public override void Initialize()
         {
-            SetStartDate(2017, 1, 1);
-            SetEndDate(2017, 12, 30);
+            //SetStartDate(2017, 1, 1);
+            //SetEndDate(2017, 12, 30);
+
+            SetStartDate(2015, 12, 24);
+            SetEndDate(2015, 12, 25);
             SetCash(1000000);
 
             foreach (string symbol in S_AND_P_500_SYMOLS)
             {
-                var option = AddOption(symbol, Resolution.Daily);
+                var option = AddOption(symbol);//, Resolution.Daily);
                 option.PriceModel = OptionPriceModels.BlackScholes();
 
                 // set our strike/expiry filter for this option chain
@@ -184,13 +187,13 @@ namespace QuantConnect.Algorithm.CSharp
 
             // buy calls
             var bestCall = calls.First();
-            int quantity = (int)Math.Floor(totalPrice / bestCall.LastPrice);
-            MarketOrder(bestCall.Symbol, quantity);
+            int quantity = (int)Math.Floor(totalPrice / bestCall.BidPrice);
+            LimitOrder(bestCall.Symbol, 1, bestCall.BidPrice);
 
             // buy puts
             var bestPut = puts.First();
-            quantity = (int)Math.Floor(totalPrice / bestPut.LastPrice);
-            MarketOrder(bestPut.Symbol, quantity);
+            quantity = (int)Math.Floor(totalPrice / bestPut.BidPrice);
+            LimitOrder(bestPut.Symbol, quantity, bestCall.BidPrice);
         }
 
         private void liquidateExpiredOptions()

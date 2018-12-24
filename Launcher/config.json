@@ -122,6 +122,9 @@
   "alpaca-secret-key": "",
   "alpaca-trading-mode": "paper",
 
+  // fill all limit order (without taking into accout the relevant market state)
+  "auto-fill-limit-order": true,
+
   // parameters to set in the algorithm (the below are just samples)
   "parameters": {
     // Intrinio account user and password

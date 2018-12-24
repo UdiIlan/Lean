@@ -19,6 +19,7 @@ using QuantConnect.Data;
 using QuantConnect.Data.Market;
 using QuantConnect.Python;
 using QuantConnect.Securities;
+using QuantConnect.Parameters;
 
 namespace QuantConnect.Orders.Fills
 {
@@ -36,6 +37,10 @@ namespace QuantConnect.Orders.Fills
         /// This is required due to a limitation in PythonNet to resolved overriden methods
         /// </summary>
         protected FillModelPythonWrapper PythonWrapper;
+
+        // Fill all limit order (without taking into accout the relevant market state).
+        [Parameter("auto-fill-limit-order")]
+        private bool _autoFillLimitOrder;
 
         /// <summary>
         /// Used to set the <see cref="FillModelPythonWrapper"/> instance if any
@@ -317,7 +322,7 @@ namespace QuantConnect.Orders.Fills
             {
                 case OrderDirection.Buy:
                     //Buy limit seeks lowest price
-                    if (prices.Low < order.LimitPrice)
+                    if (_autoFillLimitOrder || prices.Low < order.LimitPrice)
                     {
                         //Set order fill:
                         fill.Status = OrderStatus.Filled;
@@ -330,7 +335,7 @@ namespace QuantConnect.Orders.Fills
                     break;
                 case OrderDirection.Sell:
                     //Sell limit seeks highest price possible
-                    if (prices.High > order.LimitPrice)
+                    if (_autoFillLimitOrder || prices.High > order.LimitPrice)
                     {
                         fill.Status = OrderStatus.Filled;
                         // fill at the worse price this bar or the limit price, this allows far out of the money limits
