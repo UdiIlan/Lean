@@ -26,13 +26,15 @@ import pandas
 import zipfile
 import re
 import os
+from datetime import datetime
 
 DEST_DIR = "C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Result"
 SOURCE_DIR = 'C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Data'
+SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_MINUTE_TIMESTAMP = 55440000
 
 
-def process_source_dir(source_dir, dest_dir):
+def process_source_dir(source_dir, dest_dir, snp_symbols):
     files_by_zip = {}
     zip_files = get_files_in_folder(source_dir)
     for curr_file in zip_files:
@@ -46,11 +48,11 @@ def process_source_dir(source_dir, dest_dir):
             stock_quotes_file = date_info['stockquotes']
             stock_quotes_data = pandas.read_csv(zip_file_obj.open(stock_quotes_file))
             process_stocks_file(stock_quotes_data, date_info['year'], date_info['month'], date_info['day'],
-                                dest_dir)
+                                dest_dir, snp_symbols)
             options_file = date_info['options']
             options_data = pandas.read_csv(zip_file_obj.open(options_file))
             process_options_file(options_data, date_info['year'], date_info['month'], date_info['day'],
-                                dest_dir)
+                                dest_dir, snp_symbols)
             break
         break
 
@@ -96,35 +98,95 @@ def get_files_from_zip_by_date(zip_path):
     return files_in_date
 
 
-def process_stocks_file(stocks_data, year, month, day, dest_folder):
+def process_stocks_file(stocks_data, year, month, day, dest_folder, snp_symbols):
     for index, row in stocks_data.iterrows():
         symbol = row['symbol']
-        open_price = row['open']
-        high_price = row['high']
-        low_price = row['low']
-        close_price = row['close']
-        volume = row['volume']
-        zip_dir = os.path.join(dest_folder, 'equity', 'usa', 'minute', symbol.lower())
-        dir_created = True
-        try:
-            if not os.path.exists(zip_dir):
-                os.makedirs(zip_dir)
-        except Exception as e:
-            print("directory exception:", e)
-            dir_created = False
-        if dir_created:
-            zip_path = os.path.join(zip_dir, f'{year}{month:02}{day:02}_trade.zip')
-            zip_file_handle = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
-            stockquote_filename = f'{year}{month:02}{day:02}_{symbol}_minute_trade.csv'
-            zip_file_handle.writestr(stockquote_filename,
-                                     f'{DAILY_TRADE_MINUTE_TIMESTAMP},{open_price},{high_price},{low_price},'
-                                     f'{close_price},{volume}')
-            zip_file_handle.close()
+        if symbol in snp_symbols:
+            open_price = row['open']
+            high_price = row['high']
+            low_price = row['low']
+            close_price = row['close']
+            volume = row['volume']
+            zip_dir = os.path.join(dest_folder, 'equity', 'usa', 'minute', symbol.lower())
+            dir_created = True
+            try:
+                if not os.path.exists(zip_dir):
+                    os.makedirs(zip_dir)
+            except Exception as e:
+                print("directory exception:", e)
+                dir_created = False
+            if dir_created:
+                zip_path = os.path.join(zip_dir, f'{year}{month:02}{day:02}_trade.zip')
+                zip_file_handle = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
+                stockquote_filename = f'{year}{month:02}{day:02}_{symbol}_minute_trade.csv'
+                zip_file_handle.writestr(stockquote_filename,
+                                         f'{DAILY_TRADE_MINUTE_TIMESTAMP},{open_price},{high_price},{low_price},'
+                                         f'{close_price},{volume}')
+                zip_file_handle.close()
 
-def process_options_file(stocks_data, year, month, day, dest_folder):
 
+def process_options_file(options_data, year, month, day, dest_folder, snp_symbols):
+    file_prefix = f'{year}{month:02}{day:02}'
+    format_str = "{}"
+    zip_format_string = f'{file_prefix}_{format_str}_american'
+    curr_stock_symbol = ''
+    open_interest_zip_handle = None
+    quote_zip_handle = None
+    trade_zip_handle = None
+    for index, row in options_data.iterrows():
+        stock_symbol = row['UnderlyingSymbol']
+        if stock_symbol in snp_symbols:
+            if stock_symbol != curr_stock_symbol:
+                if open_interest_zip_handle:
+                    open_interest_zip_handle.close()
+                if quote_zip_handle:
+                    quote_zip_handle.close()
+                if trade_zip_handle:
+                    trade_zip_handle.close()
+                output_path = os.path.join(dest_folder, 'option', 'usa', 'minute', stock_symbol.lower())
+                dir_created = True
+                try:
+                    if not os.path.exists(zip_dir):
+                        os.makedirs(zip_dir)
+                except Exception as e:
+                    print("directory exception:", e)
+                    dir_created = False
+                if dir_created:
+                    open_interest_zip_path = os.path.join(output_path, zip_format_string.format("openinterest"))
+                    open_interest_zip_handle = zipfile.ZipFile(open_interest_zip_path, 'w', zipfile.ZIP_DEFLATED)
+                    quote_zip_path = os.path.join(output_path, zip_format_string.format("quote"))
+                    quote_zip_handle = zipfile.ZipFile(quote_zip_path, 'w', zipfile.ZIP_DEFLATED)
+                    trade_zip_path = os.path.join(output_path, zip_format_string.format("trade"))
+                    trade_zip_handle = zipfile.ZipFile(trade_zip_path, 'w', zipfile.ZIP_DEFLATED)
+            if open_interest_zip_handle and quote_zip_handle and trade_zip_handle:
+                expiration_date = datetime.strptime(row['Expiratiorn'], "%m/%d/%Y")
+                csv_file_template = f'{file_prefix}_{stock_symbol.lower()}_minute_{format_str}_american_' \
+                                    f'{row["Type"]}_{int(row["Strike"]) * 10000}_{expiration_date.year}' \
+                                    f'{expiration_date.month:02}{expiration_date.day:02}.csv'
+                open_interest_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["OpenInterest"]}'
+                open_interest_csv = csv_file_template.format("openinterest")
+                open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
+                option_quote_bid = row['Bid']
+                option_quote_ask = row['Ask']
+                option_quote_half_volume = int(row['Volume'] / 2)
+                quote_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_quote_bid},{option_quote_bid},{option_quote_bid}' \
+                            f',{option_quote_bid},{option_quote_half_volume},{option_quote_ask},{option_quote_ask},' \
+                            f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume}'
+                quote_csv = csv_file_template.format("quote")
+                quote_zip_handle.writestr(quote_csv, quote_row)
+                trade_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["Last"]},{row["Last"]},{row["Last"]},{row["Last"]}' \
+                            f',{row["Volume"]}'
+                trade_csv = csv_file_template.format("trade")
+                trade_zip_handle.writestr(trade_csv, trade_row)
+    if open_interest_zip_handle:
+        open_interest_zip_handle.close()
+    if quote_zip_handle:
+        quote_zip_handle.close()
+    if trade_zip_handle:
+        trade_zip_handle.close()
 
 
 if __name__ == '__main__':
-    process_source_dir(SOURCE_DIR, DEST_DIR)
+    snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
+    process_source_dir(SOURCE_DIR, DEST_DIR, snp_500_symbols)
 
