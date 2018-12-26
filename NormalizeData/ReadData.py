@@ -2,7 +2,7 @@
     Algorithm description:
     for lines in stockquotes file:
 	if symbol is in expanded s&p 500 then create equity file:
-		Data\equity\usa\minute\amzn\20131101_trade.zip:
+		Data\\equity\\usa\\minute\\amzn\\20131101_trade.zip:
 			20131101_amzn_minute_trade.csv
 			55440000,3590020,3590020,3590020,3590020,16
 			{permanent timestamp}, 4 * {symbol price}, symbol volume
@@ -28,8 +28,10 @@ import re
 import os
 from datetime import datetime
 
-DEST_DIR = "C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Result"
-SOURCE_DIR = 'C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Data'
+#DEST_DIR = 'C:\\Users\\udiil\\Documents\\Projects\\Lean\\NormalizeData\\Destination'
+#SOURCE_DIR = 'C:\\Users\\udiil\\Documents\\Projects\\Lean\\NormalizeData\\Source'
+DEST_DIR = ".\\Destination"
+SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_MINUTE_TIMESTAMP = 55440000
 
@@ -99,9 +101,11 @@ def get_files_from_zip_by_date(zip_path):
 
 
 def process_stocks_file(stocks_data, year, month, day, dest_folder, snp_symbols):
+    print(f'Handling stocks for {day}/{month}/{year}')
     for index, row in stocks_data.iterrows():
         symbol = row['symbol']
         if symbol in snp_symbols:
+            print(f'Handling the stock {symbol} at {day}/{month}/{year}')
             open_price = row['open']
             high_price = row['high']
             low_price = row['low']
@@ -126,9 +130,10 @@ def process_stocks_file(stocks_data, year, month, day, dest_folder, snp_symbols)
 
 
 def process_options_file(options_data, year, month, day, dest_folder, snp_symbols):
+    print(f'Handling options for {day}/{month}/{year}')
     file_prefix = f'{year}{month:02}{day:02}'
     format_str = "{}"
-    zip_format_string = f'{file_prefix}_{format_str}_american'
+    zip_format_string = f'{file_prefix}_{format_str}_american.zip'
     curr_stock_symbol = ''
     open_interest_zip_handle = None
     quote_zip_handle = None
@@ -137,6 +142,7 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
         stock_symbol = row['UnderlyingSymbol']
         if stock_symbol in snp_symbols:
             if stock_symbol != curr_stock_symbol:
+                print(f'Handling the options for {stock_symbol} on {day}/{month}/{year}')
                 if open_interest_zip_handle:
                     open_interest_zip_handle.close()
                 if quote_zip_handle:
@@ -146,12 +152,13 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                 output_path = os.path.join(dest_folder, 'option', 'usa', 'minute', stock_symbol.lower())
                 dir_created = True
                 try:
-                    if not os.path.exists(zip_dir):
-                        os.makedirs(zip_dir)
+                    if not os.path.exists(output_path):
+                        os.makedirs(output_path)
                 except Exception as e:
                     print("directory exception:", e)
                     dir_created = False
                 if dir_created:
+                    curr_stock_symbol = stock_symbol
                     open_interest_zip_path = os.path.join(output_path, zip_format_string.format("openinterest"))
                     open_interest_zip_handle = zipfile.ZipFile(open_interest_zip_path, 'w', zipfile.ZIP_DEFLATED)
                     quote_zip_path = os.path.join(output_path, zip_format_string.format("quote"))
@@ -159,9 +166,9 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                     trade_zip_path = os.path.join(output_path, zip_format_string.format("trade"))
                     trade_zip_handle = zipfile.ZipFile(trade_zip_path, 'w', zipfile.ZIP_DEFLATED)
             if open_interest_zip_handle and quote_zip_handle and trade_zip_handle:
-                expiration_date = datetime.strptime(row['Expiratiorn'], "%m/%d/%Y")
+                expiration_date = datetime.strptime(row['Expiration'], "%m/%d/%Y")
                 csv_file_template = f'{file_prefix}_{stock_symbol.lower()}_minute_{format_str}_american_' \
-                                    f'{row["Type"]}_{int(row["Strike"]) * 10000}_{expiration_date.year}' \
+                                    f'{row["Type"]}_{float(row["Strike"]) * 10000}_{expiration_date.year}' \
                                     f'{expiration_date.month:02}{expiration_date.day:02}.csv'
                 open_interest_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["OpenInterest"]}'
                 open_interest_csv = csv_file_template.format("openinterest")
