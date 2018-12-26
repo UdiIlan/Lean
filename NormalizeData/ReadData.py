@@ -1,7 +1,59 @@
+"""
+    Algorithm description:
+    for lines in stockquotes file:
+	if symbol is in expanded s&p 500 then create equity file:
+		Data\equity\usa\minute\amzn\20131101_trade.zip:
+			20131101_amzn_minute_trade.csv
+			55440000,3590020,3590020,3590020,3590020,16
+			{permanent timestamp}, 4 * {symbol price}, symbol volume
+
+    for lines in date file:
+        if symbol is in expanded s&p 500:
+            for each option:
+                create 3 csv files:
+                    20131101_amzn_minute_openinterest_american_call_360000_20131105.csv:
+                        23460000,505
+                        {permanent timestamp}, {open interest}
+                    20131101_amzn_minute_quote_american_call_3600000_20131105.csv:
+                        55440000,39000,39000,39000,39000,650,41500,41500,41500,41500,650
+                        {permanent timestamp}, 4 * bid, volume / 2, 4 * ask, volume / 2
+                    20131101_amzn_minute_trade_american_call_3600000_20131105.csv:
+                        55440000,645000,645000,645000,645000,2
+                        {permanent timestamp}, 4 * last, volume
+"""
+
 import pandas
 import zipfile
 import re
 import os
+
+DEST_DIR = "C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Result"
+SOURCE_DIR = 'C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Data'
+DAILY_TRADE_MINUTE_TIMESTAMP = 55440000
+
+
+def process_source_dir(source_dir, dest_dir):
+    files_by_zip = {}
+    zip_files = get_files_in_folder(source_dir)
+    for curr_file in zip_files:
+        file_path = os.path.join(source_dir, curr_file)
+        files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
+
+    for zip_file in files_by_zip:
+        zip_file_obj = zipfile.ZipFile(zip_file)
+        for curr_date in files_by_zip[zip_file]:
+            date_info = files_by_zip[zip_file][curr_date]
+            stock_quotes_file = date_info['stockquotes']
+            stock_quotes_data = pandas.read_csv(zip_file_obj.open(stock_quotes_file))
+            process_stocks_file(stock_quotes_data, date_info['year'], date_info['month'], date_info['day'],
+                                dest_dir)
+            options_file = date_info['options']
+            options_data = pandas.read_csv(zip_file_obj.open(options_file))
+            process_options_file(options_data, date_info['year'], date_info['month'], date_info['day'],
+                                dest_dir)
+            break
+        break
+
 
 def get_snp_symbols(snp_500_filename):
     # snp_500_filename = "./snp500.txt"
@@ -45,7 +97,6 @@ def get_files_from_zip_by_date(zip_path):
 
 
 def process_stocks_file(stocks_data, year, month, day, dest_folder):
-    symbol = 'GOOG'
     for index, row in stocks_data.iterrows():
         symbol = row['symbol']
         open_price = row['open']
@@ -64,56 +115,16 @@ def process_stocks_file(stocks_data, year, month, day, dest_folder):
         if dir_created:
             zip_path = os.path.join(zip_dir, f'{year}{month:02}{day:02}_trade.zip')
             zip_file_handle = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
-            zip_file_handle.writestr(f'{year}{month:02}{day:02}_{symbol.lower()}_minute_trade.csv',
-                                     f'5555555,{open_price},{high_price},{low_price},{close_price},{volume}')
+            stockquote_filename = f'{year}{month:02}{day:02}_{symbol}_minute_trade.csv'
+            zip_file_handle.writestr(stockquote_filename,
+                                     f'{DAILY_TRADE_MINUTE_TIMESTAMP},{open_price},{high_price},{low_price},'
+                                     f'{close_price},{volume}')
             zip_file_handle.close()
 
-dest_dir = "."
-source_dir = 'C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Data'
-files_by_zip = {}
-zip_files = get_files_in_folder(source_dir)
-for curr_file in zip_files:
-    file_path = os.path.join(source_dir, curr_file)
-    files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
-
-for zip_file in files_by_zip:
-    zip_file_obj = zipfile.ZipFile(zip_file)
-    for curr_date in files_by_zip[zip_file]:
-        date_info = files_by_zip[zip_file][curr_date]
-        stock_quotes_file = date_info['stockquotes']
-        stock_quotes_data = pandas.read_csv(zip_file_obj.open(stock_quotes_file))
-        process_stocks_file(stock_quotes_data, date_info['year'], date_info['month'], date_info['day'],
-                            "C:\\Users\\Udi Ilan\\Documents\\Projects\\ConvertData\\Result")
-        options_file = stock_quotes_file = date_info['options']
-        options_data = pandas.read_csv(zip_file_obj.open(options_file))
-        break
-    break
+def process_options_file(stocks_data, year, month, day, dest_folder):
 
 
 
-zf = zipfile.ZipFile('C:/Users/udiil/Downloads/2013_November.zip')
-year = 2013
-day = 1
-month = 11
-df = pandas.read_csv(zf.open('stockquotes_20131101.csv'))
-symbol_index = df.columns.get_loc('symbol')
-open_index = df.columns.get_loc('open')
-high_index = df.columns.get_loc('high')
-low_index = df.columns.get_loc('low')
-close_index = df.columns.get_loc('close')
-volume_index = df.columns.get_loc('volume')
-DAILY_TRADE_MINUTE_TIMESTAMP = 55440000
+if __name__ == '__main__':
+    process_source_dir(SOURCE_DIR, DEST_DIR)
 
-for index, row in df.iterrows():
-    symbol = row[symbol_index]
-    if symbol in snp_set:
-        open_price = row[open_index]
-        high = row[high_index]
-        low = row[low_index]
-        close = row[close_index]
-        volume = row[volume_index]
-        new_row = [DAILY_TRADE_MINUTE_TIMESTAMP, open_price, high, low, close, volume]
-        stockquote_filename = f'{year}{month:02}{day:02}_{symbol}_minute_trade.csv'
-        print("filename", stockquote_filename)
-        csv_writer(new_row, stockquote_filename)
-        break
