@@ -29,8 +29,6 @@ import os
 from datetime import datetime
 import time
 
-#DEST_DIR = 'C:\\Users\\udiil\\Documents\\Projects\\Lean\\NormalizeData\\Destination'
-#SOURCE_DIR = 'C:\\Users\\udiil\\Documents\\Projects\\Lean\\NormalizeData\\Source'
 DEST_DIR = ".\\Destination"
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
@@ -50,12 +48,18 @@ def process_source_dir(source_dir, dest_dir, snp_symbols):
             date_info = files_by_zip[zip_file][curr_date]
             stock_quotes_file = date_info['stockquotes']
             stock_quotes_data = pandas.read_csv(zip_file_obj.open(stock_quotes_file))
+            stocks_start = time.time()
             process_stocks_file(stock_quotes_data, date_info['year'], date_info['month'], date_info['day'],
                                 dest_dir, snp_symbols)
+            stocks_end = time.time()
+            print(f'Processing stocks took {stocks_end - stocks_start} seconds')
             options_file = date_info['options']
             options_data = pandas.read_csv(zip_file_obj.open(options_file))
             process_options_file(options_data, date_info['year'], date_info['month'], date_info['day'],
                                 dest_dir, snp_symbols)
+            print(f'Processing options took {time.time() - stocks_end} seconds')
+            break
+        break
 
 
 def get_snp_symbols(snp_500_filename):
@@ -137,7 +141,10 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
     open_interest_zip_handle = None
     quote_zip_handle = None
     trade_zip_handle = None
+    option_index = 0
     for index, row in options_data.iterrows():
+        if option_index > 20:
+            break
         stock_symbol = row['UnderlyingSymbol']
         if stock_symbol in snp_symbols:
             if stock_symbol != curr_stock_symbol:
@@ -157,6 +164,7 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                     print("directory exception:", e)
                     dir_created = False
                 if dir_created:
+                    option_index += 1
                     curr_stock_symbol = stock_symbol
                     open_interest_zip_path = os.path.join(output_path, zip_format_string.format("openinterest"))
                     open_interest_zip_handle = zipfile.ZipFile(open_interest_zip_path, 'w', zipfile.ZIP_DEFLATED)
@@ -171,7 +179,7 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                                     f'{expiration_date.month:02}{expiration_date.day:02}.csv'
                 open_interest_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["OpenInterest"]}'
                 open_interest_csv = csv_file_template.format("openinterest")
-                open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
+                #open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
                 option_quote_bid = row['Bid'] * 10000
                 option_quote_ask = row['Ask'] * 10000
                 option_quote_half_volume = int(row['Volume'] / 2)
@@ -179,12 +187,12 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                             f',{option_quote_bid},{option_quote_half_volume},{option_quote_ask},{option_quote_ask},' \
                             f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume}'
                 quote_csv = csv_file_template.format("quote")
-                quote_zip_handle.writestr(quote_csv, quote_row)
+                #quote_zip_handle.writestr(quote_csv, quote_row)
                 option_trade_last = row['Last'] * 10000
                 trade_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_trade_last},{option_trade_last},' \
                             f'{option_trade_last},{option_trade_last},{row["Volume"]}'
                 trade_csv = csv_file_template.format("trade")
-                trade_zip_handle.writestr(trade_csv, trade_row)
+                #trade_zip_handle.writestr(trade_csv, trade_row)
     if open_interest_zip_handle:
         open_interest_zip_handle.close()
     if quote_zip_handle:
