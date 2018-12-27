@@ -27,6 +27,7 @@ import zipfile
 import re
 import os
 from datetime import datetime
+import time
 
 #DEST_DIR = 'C:\\Users\\udiil\\Documents\\Projects\\Lean\\NormalizeData\\Destination'
 #SOURCE_DIR = 'C:\\Users\\udiil\\Documents\\Projects\\Lean\\NormalizeData\\Source'
@@ -55,8 +56,6 @@ def process_source_dir(source_dir, dest_dir, snp_symbols):
             options_data = pandas.read_csv(zip_file_obj.open(options_file))
             process_options_file(options_data, date_info['year'], date_info['month'], date_info['day'],
                                 dest_dir, snp_symbols)
-            break
-        break
 
 
 def get_snp_symbols(snp_500_filename):
@@ -106,10 +105,10 @@ def process_stocks_file(stocks_data, year, month, day, dest_folder, snp_symbols)
         symbol = row['symbol']
         if symbol in snp_symbols:
             print(f'Handling the stock {symbol} at {day}/{month}/{year}')
-            open_price = row['open']
-            high_price = row['high']
-            low_price = row['low']
-            close_price = row['close']
+            open_price = row['open'] * 10000
+            high_price = row['high'] * 10000
+            low_price = row['low'] * 10000
+            close_price = row['close'] * 10000
             volume = row['volume']
             zip_dir = os.path.join(dest_folder, 'equity', 'usa', 'minute', symbol.lower())
             dir_created = True
@@ -122,7 +121,7 @@ def process_stocks_file(stocks_data, year, month, day, dest_folder, snp_symbols)
             if dir_created:
                 zip_path = os.path.join(zip_dir, f'{year}{month:02}{day:02}_trade.zip')
                 zip_file_handle = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
-                stockquote_filename = f'{year}{month:02}{day:02}_{symbol}_minute_trade.csv'
+                stockquote_filename = f'{year}{month:02}{day:02}_{symbol.lower()}_minute_trade.csv'
                 zip_file_handle.writestr(stockquote_filename,
                                          f'{DAILY_TRADE_MINUTE_TIMESTAMP},{open_price},{high_price},{low_price},'
                                          f'{close_price},{volume}')
@@ -168,21 +167,22 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
             if open_interest_zip_handle and quote_zip_handle and trade_zip_handle:
                 expiration_date = datetime.strptime(row['Expiration'], "%m/%d/%Y")
                 csv_file_template = f'{file_prefix}_{stock_symbol.lower()}_minute_{format_str}_american_' \
-                                    f'{row["Type"]}_{float(row["Strike"]) * 10000}_{expiration_date.year}' \
+                                    f'{row["Type"]}_{int(float(row["Strike"]) * 10000)}_{expiration_date.year}' \
                                     f'{expiration_date.month:02}{expiration_date.day:02}.csv'
                 open_interest_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["OpenInterest"]}'
                 open_interest_csv = csv_file_template.format("openinterest")
                 open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
-                option_quote_bid = row['Bid']
-                option_quote_ask = row['Ask']
+                option_quote_bid = row['Bid'] * 10000
+                option_quote_ask = row['Ask'] * 10000
                 option_quote_half_volume = int(row['Volume'] / 2)
                 quote_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_quote_bid},{option_quote_bid},{option_quote_bid}' \
                             f',{option_quote_bid},{option_quote_half_volume},{option_quote_ask},{option_quote_ask},' \
                             f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume}'
                 quote_csv = csv_file_template.format("quote")
                 quote_zip_handle.writestr(quote_csv, quote_row)
-                trade_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["Last"]},{row["Last"]},{row["Last"]},{row["Last"]}' \
-                            f',{row["Volume"]}'
+                option_trade_last = row['Last'] * 10000
+                trade_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_trade_last},{option_trade_last},' \
+                            f'{option_trade_last},{option_trade_last},{row["Volume"]}'
                 trade_csv = csv_file_template.format("trade")
                 trade_zip_handle.writestr(trade_csv, trade_row)
     if open_interest_zip_handle:
@@ -194,6 +194,8 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
     process_source_dir(SOURCE_DIR, DEST_DIR, snp_500_symbols)
-
+    end_time = time.time()
+    print("Processing took", end_time - start_time, "seconds")
