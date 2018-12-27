@@ -17,7 +17,7 @@ namespace QuantConnect.Algorithm.CSharp
         private bool registerForEOD = false;
 
         #region constants
-        private static readonly string[] S_AND_P_500_SYMOLS = { "GOOG" }; // { "FB", "JPM", "XOM", "GOOG", "GOOGL", "PFE", "UNH", "VZ", "V", "PG", "BAC", "CVX", "INTC", "T", "CSCO", "WFC", "MRK", "HD", "KO", "MA", "BA", "CMCSA", "DIS", "PEP", "MCD", "C", "WMT", "ABBV", "ORCL", "PM", "MDT", "AMGN", "ABT", "DWDP", "ADBE", "MMM", "NFLX", "IBM", "LLY", "UNP", "AVGO", "CRM", "HON", "MO", "ACN", "PYPL", "COST", "UTX", "TMO", "CVS", "NKE", "TXN", "NVDA", "BKNG", "GILD", "LIN", "NEE", "BMY", "SBUX", "USB", "COP", "AXP", "AMT", "CAT", "LOW", "LMT", "UPS", "ANTM", "QCOM", "WBA", "CME", "MDLZ", "DUK", "BIIB", "BDX", "DHR", "GS", "ADP", "CB", "EOG", "GE", "SPG", "ISRG", "TJX", "SLB", "PNC", "CL", "CHTR", "CSX", "ESRX", "MS", "INTU", "SYK", "FOXA", "BSX", "CI", "D", "SCHW", "OXY", "CELG", "RTN", "ILMN", "SO", "CCI", "GD", "AGN", "BLK", "DE", "NOC", "FDX", "GM", "EXC", "ICE", "VRTX", "BK", "NSC", "ZTS", "HUM", "MMC", "SPGI", "PLD", "MPC", "MU", "ITW", "KMB", "ECL", "AEP", "EMR", "MET", "CTSH", "COF", "PSX", "AON", "PGR", "ATVI", "HCA", "WM", "BBT", "HPQ", "DAL", "TGT", "FIS", "PRU", "EW", "APD", "AMAT", "F", "ADI", "BAX", "AFL", "AIG", "TRV", "SRE", "SHW", "MAR", "PSA", "STZ", "VLO", "RHT", "SYY", "EL", "FISV", "EQIX", "ETN", "KMI", "ROST", "KHC", "JCI", "ADSK", "REGN", "ROP", "WMB", "ALL", "YUM", "DG", "PEG", "ORLY", "CNC", "XEL", "WELL", "LYB", "EBAY", "APC", "LUV", "EQR", "AVB", "ED", "TEL", "GLW", "ALXN", "EA", "HAL", "APH", "STI", "ADM", "PPG", "TWTR", "VFC", "CXO", "MCK", "MCO", "OKE", "DLR", "STT", "FOX", "IR", "PXD", "WEC", "AZO", "KR", "GIS", "VTR", "MNST", "ZBH", "CCL", "A", "TROW", "XLNX", "ES", "MTB", "DFS", "PAYX", "LRCX", "DTE", "HPE", "HLT", "FTV", "CLX", "PPL", "MSI", "PH", "PCAR", "WLTW", "CMI", "UAL", "DLTR", "SBAC", "IQV", "BXP", "NTRS", "ROK", "FE", "O", "EIX", "VRSK", "WY", "MKC", "SWK", "INFO", "CERN", "IP", "NUE", "RCL", "APTV", "NEM", "AWK", "ESS", "OMC", "AMD", "HRS", "AEE", "IDXX", "MCHP", "KEY", "TDG", "VRSN", "CHD", "NTAP", "SYF", "CAH", "TSN", "BLL", "FITB", "DXC", "EVRG", "GPN", "CBS", "AME", "RSG", "RMD", "CTL", "FLT", "ETR", "ALGN", "AMP", "FAST", "FCX", "RF", "K", "FANG", "MYL", "HSY", "CFG", "CMS", "MTD", "MXIM", "HIG", "ABMD", "CTAS", "LLL", "WAT", "KLAC", "GPC", "CAG", "LH", "TSS", "BBY", "CNP", "HBAN", "ULTA", "EXPE", "CTXS", "AAL", "IFF", "HCP", "SYMC", "DVN", "AJG", "MSCI", "PCG", "HST", "ARE", "ABC", "SNPS", "VMC", "MGM", "HES", "GWW", "MRO", "IT", "CBRE", "HSIC", "ANSS", "NRG", "DRI", "TXT", "L", "EXR", "EXPD", "COO", "CDNS", "SWKS", "CHRW", "CMA", "DHI", "AAP", "HRL", "WCG", "WDC", "VNO", "TTWO", "CINF", "DGX", "ANET", "LEN", "LNC", "XYL", "TAP", "MOS", "CMG", "ETFC", "APA", "EFX", "DOV", "MAA", "HOLX", "CBOE", "BR", "AKAM", "INCY", "SJM", "UDR", "WRK", "KMX", "LW", "PFG", "KEYS", "COG", "UHS", "MLM", "VAR", "TSCO", "REG", "BHGE", "LNT", "NBL", "FTNT", "NOV", "SIVB", "KSS", "FMC", "JKHY", "NCLH", "VIAB", "AES", "WYNN", "STX", "EMN", "PNW", "FFIV", "NWL", "DRE", "NDAQ", "TPR", "KSU", "NI", "IRM", "RJF", "CPRT", "HAS", "FRT", "M", "JNPR", "ALB", "BEN", "CF", "PKI", "DISCK", "NLSN", "TIF", "RE", "MAS", "HFC", "FTI", "IPG", "PKG", "HII", "ARNC", "JBHT", "ADS", "ZION", "URI", "SNA", "ALLE", "XRAY", "WU", "TMK", "LKQ", "SLG", "GRMN", "AVY", "BF.B", "ALK", "PVH", "MHK", "QRVO", "AIV", "CPB", "WHR", "PRGO", "DVA", "BWA", "RHI", "LB", "DISH", "JEC", "IVZ", "KIM", "XEC", "PHM", "SCG", "UNM", "PNR", "HP", "TRIP", "NKTR", "AOS", "FL", "FLIR", "HOG", "GPS", "FBHS", "RL", "PBCT", "FLS", "KORS", "HRB", "ROL", "JWN", "XRX", "HBI", "SEE", "JEF", "AMG", "MAC", "GT", "LEG", "NWSA", "AIZ", "FLR", "PWR", "IPGP", "DISCA", "MAT", "UAA", "UA", "BHF", "COTY", "NFX", "NWS" };
+        private static readonly string[] S_AND_P_500_SYMOLS = { "AMZN" }; // { "FB", "JPM", "XOM", "GOOG", "GOOGL", "PFE", "UNH", "VZ", "V", "PG", "BAC", "CVX", "INTC", "T", "CSCO", "WFC", "MRK", "HD", "KO", "MA", "BA", "CMCSA", "DIS", "PEP", "MCD", "C", "WMT", "ABBV", "ORCL", "PM", "MDT", "AMGN", "ABT", "DWDP", "ADBE", "MMM", "NFLX", "IBM", "LLY", "UNP", "AVGO", "CRM", "HON", "MO", "ACN", "PYPL", "COST", "UTX", "TMO", "CVS", "NKE", "TXN", "NVDA", "BKNG", "GILD", "LIN", "NEE", "BMY", "SBUX", "USB", "COP", "AXP", "AMT", "CAT", "LOW", "LMT", "UPS", "ANTM", "QCOM", "WBA", "CME", "MDLZ", "DUK", "BIIB", "BDX", "DHR", "GS", "ADP", "CB", "EOG", "GE", "SPG", "ISRG", "TJX", "SLB", "PNC", "CL", "CHTR", "CSX", "ESRX", "MS", "INTU", "SYK", "FOXA", "BSX", "CI", "D", "SCHW", "OXY", "CELG", "RTN", "ILMN", "SO", "CCI", "GD", "AGN", "BLK", "DE", "NOC", "FDX", "GM", "EXC", "ICE", "VRTX", "BK", "NSC", "ZTS", "HUM", "MMC", "SPGI", "PLD", "MPC", "MU", "ITW", "KMB", "ECL", "AEP", "EMR", "MET", "CTSH", "COF", "PSX", "AON", "PGR", "ATVI", "HCA", "WM", "BBT", "HPQ", "DAL", "TGT", "FIS", "PRU", "EW", "APD", "AMAT", "F", "ADI", "BAX", "AFL", "AIG", "TRV", "SRE", "SHW", "MAR", "PSA", "STZ", "VLO", "RHT", "SYY", "EL", "FISV", "EQIX", "ETN", "KMI", "ROST", "KHC", "JCI", "ADSK", "REGN", "ROP", "WMB", "ALL", "YUM", "DG", "PEG", "ORLY", "CNC", "XEL", "WELL", "LYB", "EBAY", "APC", "LUV", "EQR", "AVB", "ED", "TEL", "GLW", "ALXN", "EA", "HAL", "APH", "STI", "ADM", "PPG", "TWTR", "VFC", "CXO", "MCK", "MCO", "OKE", "DLR", "STT", "FOX", "IR", "PXD", "WEC", "AZO", "KR", "GIS", "VTR", "MNST", "ZBH", "CCL", "A", "TROW", "XLNX", "ES", "MTB", "DFS", "PAYX", "LRCX", "DTE", "HPE", "HLT", "FTV", "CLX", "PPL", "MSI", "PH", "PCAR", "WLTW", "CMI", "UAL", "DLTR", "SBAC", "IQV", "BXP", "NTRS", "ROK", "FE", "O", "EIX", "VRSK", "WY", "MKC", "SWK", "INFO", "CERN", "IP", "NUE", "RCL", "APTV", "NEM", "AWK", "ESS", "OMC", "AMD", "HRS", "AEE", "IDXX", "MCHP", "KEY", "TDG", "VRSN", "CHD", "NTAP", "SYF", "CAH", "TSN", "BLL", "FITB", "DXC", "EVRG", "GPN", "CBS", "AME", "RSG", "RMD", "CTL", "FLT", "ETR", "ALGN", "AMP", "FAST", "FCX", "RF", "K", "FANG", "MYL", "HSY", "CFG", "CMS", "MTD", "MXIM", "HIG", "ABMD", "CTAS", "LLL", "WAT", "KLAC", "GPC", "CAG", "LH", "TSS", "BBY", "CNP", "HBAN", "ULTA", "EXPE", "CTXS", "AAL", "IFF", "HCP", "SYMC", "DVN", "AJG", "MSCI", "PCG", "HST", "ARE", "ABC", "SNPS", "VMC", "MGM", "HES", "GWW", "MRO", "IT", "CBRE", "HSIC", "ANSS", "NRG", "DRI", "TXT", "L", "EXR", "EXPD", "COO", "CDNS", "SWKS", "CHRW", "CMA", "DHI", "AAP", "HRL", "WCG", "WDC", "VNO", "TTWO", "CINF", "DGX", "ANET", "LEN", "LNC", "XYL", "TAP", "MOS", "CMG", "ETFC", "APA", "EFX", "DOV", "MAA", "HOLX", "CBOE", "BR", "AKAM", "INCY", "SJM", "UDR", "WRK", "KMX", "LW", "PFG", "KEYS", "COG", "UHS", "MLM", "VAR", "TSCO", "REG", "BHGE", "LNT", "NBL", "FTNT", "NOV", "SIVB", "KSS", "FMC", "JKHY", "NCLH", "VIAB", "AES", "WYNN", "STX", "EMN", "PNW", "FFIV", "NWL", "DRE", "NDAQ", "TPR", "KSU", "NI", "IRM", "RJF", "CPRT", "HAS", "FRT", "M", "JNPR", "ALB", "BEN", "CF", "PKI", "DISCK", "NLSN", "TIF", "RE", "MAS", "HFC", "FTI", "IPG", "PKG", "HII", "ARNC", "JBHT", "ADS", "ZION", "URI", "SNA", "ALLE", "XRAY", "WU", "TMK", "LKQ", "SLG", "GRMN", "AVY", "BF.B", "ALK", "PVH", "MHK", "QRVO", "AIV", "CPB", "WHR", "PRGO", "DVA", "BWA", "RHI", "LB", "DISH", "JEC", "IVZ", "KIM", "XEC", "PHM", "SCG", "UNM", "PNR", "HP", "TRIP", "NKTR", "AOS", "FL", "FLIR", "HOG", "GPS", "FBHS", "RL", "PBCT", "FLS", "KORS", "HRB", "ROL", "JWN", "XRX", "HBI", "SEE", "JEF", "AMG", "MAC", "GT", "LEG", "NWSA", "AIZ", "FLR", "PWR", "IPGP", "DISCA", "MAT", "UAA", "UA", "BHF", "COTY", "NFX", "NWS" };
         private static readonly decimal M = 1.1M;
         private static readonly decimal P = 1.00M;
         private static readonly int D = 20;
@@ -74,13 +74,13 @@ namespace QuantConnect.Algorithm.CSharp
             //SetStartDate(2017, 1, 1);
             //SetEndDate(2017, 12, 30);
 
-            SetStartDate(2015, 12, 24);
-            SetEndDate(2015, 12, 25);
+            SetStartDate(2013, 11, 01);
+            SetEndDate(2013, 11, 01);
             SetCash(1000000);
 
             foreach (string symbol in S_AND_P_500_SYMOLS)
             {
-                var option = AddOption(symbol);//, Resolution.Daily);
+                var option = AddOption(symbol, Resolution.Minute);
                 option.PriceModel = OptionPriceModels.BlackScholes();
 
                 // set our strike/expiry filter for this option chain
@@ -187,13 +187,19 @@ namespace QuantConnect.Algorithm.CSharp
 
             // buy calls
             var bestCall = calls.First();
-            int quantity = (int)Math.Floor(totalPrice / bestCall.BidPrice);
-            LimitOrder(bestCall.Symbol, 1, bestCall.BidPrice);
+            if (bestCall.BidPrice > 0)
+            {
+                int quantity = (int)Math.Floor(totalPrice / bestCall.BidPrice);
+                LimitOrder(bestCall.Symbol, 1, bestCall.BidPrice);
+            }
 
             // buy puts
             var bestPut = puts.First();
-            quantity = (int)Math.Floor(totalPrice / bestPut.BidPrice);
-            LimitOrder(bestPut.Symbol, quantity, bestCall.BidPrice);
+            if (bestPut.BidPrice > 0)
+            {
+                int quantity = (int)Math.Floor(totalPrice / bestPut.BidPrice);
+                LimitOrder(bestPut.Symbol, quantity, bestPut.BidPrice);
+            }
         }
 
         private void liquidateExpiredOptions()
@@ -232,10 +238,10 @@ namespace QuantConnect.Algorithm.CSharp
             foreach (var contract in chain)
             {
                 Debug($"Time: {contract.Time}, symbol: {chain.Underlying.Symbol} contract expried: {contract.Expiry}, strike: {contract.Strike}, stock price: {chain.Underlying.Price}, bid: {contract.BidPrice}, ask: {contract.AskPrice}, call/put: {contract.Right}, IV: {contract.ImpliedVolatility}");
-            }        
+            }
         }
 
-#endregion
+        #endregion
     }
 
 }
