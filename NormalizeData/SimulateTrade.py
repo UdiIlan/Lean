@@ -23,7 +23,7 @@ PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
 DAYS_TO_PROCESS = 100
 MINIMUM_BID = 0.5
-EXPECTED_STOCK_CHANGE_RATIO = 0.05
+EXPECTED_STOCK_CHANGE_RATIO = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 
 
 def process_source_dir(source_dir, snp_symbols):
@@ -31,13 +31,16 @@ def process_source_dir(source_dir, snp_symbols):
     zip_files = get_files_in_folder(source_dir)
     curr_trade = {}
     written_options = []
-    total_profit = 0
+    total_profit = dict()
     for curr_file in zip_files:
         file_path = os.path.join(source_dir, curr_file)
         files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
 
     day_index = 0
     open_positions = dict()
+    for curr_ratio in EXPECTED_STOCK_CHANGE_RATIO:
+        open_positions[curr_ratio] = dict()
+        total_profit[curr_ratio] = 0
     for zip_file in files_by_zip:
         print(f'Processing {zip_file}')
         zip_file_obj = zipfile.ZipFile(zip_file)
@@ -49,23 +52,29 @@ def process_source_dir(source_dir, snp_symbols):
             options_file = date_info['options']
             options_start = time.time()
             options_data = pd.read_csv(zip_file_obj.open(options_file))
-            (today_income, today_expenses, curr_trade) = process_options_file(options_data, date_info['year'],
-                                                                              date_info['month'], date_info['day'],
-                                                                              snp_symbols, open_positions)
-            for expiration_date in curr_trade:
-                if expiration_date not in open_positions:
-                    open_positions[expiration_date] = curr_trade[expiration_date]
-                else:
-                    open_positions[expiration_date] += curr_trade[expiration_date]
-            open_positions_cost = calc_positions_cost(open_positions)
-            total_profit += (today_income - today_expenses)
-            print(f'Processing options took {time.time() - options_start} seconds, today\'s profit is '
-                  f'{today_income - today_expenses}, total profit after {day_index} days is '
-                  f'{total_profit - open_positions_cost}')
+            day = date_info['day']
+            month = date_info['month']
+            year = date_info['year']
+            (today_income, today_expenses, curr_trade) = process_options_file(options_data, year, month, day,
+                                                                              snp_symbols, open_positions,
+                                                                              EXPECTED_STOCK_CHANGE_RATIO)
+            for curr_ratio in EXPECTED_STOCK_CHANGE_RATIO:
+                for expiration_date in curr_trade[curr_ratio]:
+                    if expiration_date not in open_positions[curr_ratio]:
+                        open_positions[curr_ratio][expiration_date] = curr_trade[curr_ratio][expiration_date]
+                    else:
+                        open_positions[curr_ratio][expiration_date] += curr_trade[curr_ratio][expiration_date]
+                open_positions_cost = calc_positions_cost(open_positions[curr_ratio])
+                total_profit[curr_ratio] += (today_income[curr_ratio] - today_expenses[curr_ratio])
+                print(f'{curr_ratio}: profit for {day}/{month}/{year}'
+                      f' is {today_income[curr_ratio] - today_expenses[curr_ratio]}, total profit after {day_index} '
+                      f'days is {total_profit[curr_ratio] - open_positions_cost}')
+            print(f'Processing options for {day}/{month}/{year} took {time.time() - options_start} seconds')
 
     # Reduce remaining open positions
-    total_profit -= calc_positions_cost(open_positions)
-    print(f'Total profit: {total_profit}')
+    for curr_ratio in EXPECTED_STOCK_CHANGE_RATIO:
+        total_profit[curr_ratio] -= calc_positions_cost(open_positions[curr_ratio])
+        print(f'{curr_ratio} Total profit: {total_profit[curr_ratio]}')
 
 
 def calc_positions_cost(positions):
@@ -128,7 +137,6 @@ def get_files_from_zip_by_date(zip_path):
 
 def process_options_file(options_data, year, month, day, snp_symbols, current_options, ratio_params):
     print(f'Handling options for {day}/{month}/{year}')
-    today_income = {}
     zip_date = datetime.datetime(year=year, month=month, day=day)
 
     snp_options = options_data[options_data.UnderlyingSymbol.isin(snp_symbols)].copy()
@@ -165,7 +173,11 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
     #                                                               -1 * max_iv_symbol_options.values])]
 
     trade_index = 0
-    all_today_trade = {}
+    all_today_trade = dict()
+    today_income = dict()
+    for curr_ratio in ratio_params:
+        today_income[curr_ratio] = 0
+        all_today_trade[curr_ratio] = dict()
     for (trade_group, curr_iv) in average_iv_expiration_grouped_closest_to_strike_options.iteritems():
         if trade_index >= DAILY_TRADE_OPTIONS:
             break
@@ -194,8 +206,6 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
             #       For Puts: first option (by strike) where Strike - OptionPrice < StockPrice * (1 - K)
             #       For pricing take bid
             for curr_ratio in ratio_params:
-                today_income[curr_ratio] = 0
-                all_today_trade[curr_ratio] = {}
                 calls = calls[calls.Strike + calls.Bid > calls.UnderlyingPrice * (1 + curr_ratio)]
                 puts = puts[puts.Strike - puts.Bid < puts.UnderlyingPrice * (1 - curr_ratio)]
                 calls.sort_values(by='Strike', inplace=True, ascending=True)
@@ -229,10 +239,11 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                             curr_option_trade_symbol)
 
     # When option expires pay the difference Strike and StockPrice
-    today_expenses = {}
+    today_expenses = dict()
     for curr_ratio in ratio_params:
-        if zip_date in current_options:
-            for curr_traded_symbol in current_options[zip_date]:
+        today_expenses[curr_ratio] = 0
+        if zip_date in current_options[curr_ratio]:
+            for curr_traded_symbol in current_options[curr_ratio][zip_date]:
                 symbol_row = options_data[options_data.OptionSymbol == curr_traded_symbol['symbol']]
                 if symbol_row.shape[0] == 0:
                     print('Missing symbol: {symbol_row}')
@@ -245,12 +256,16 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                     elif curr_traded_symbol['type'] == 'put' and underlying_price < strike_price:
                         pay_per_option = strike_price - underlying_price
                     symbol_expenses = pay_per_option * curr_traded_symbol['size']
-                    today_expenses += symbol_expenses
-                    print(f'For {curr_traded_symbol["symbol"]} the underlying price is {underlying_price}, paying '
-                          f'{pay_per_option} for {curr_traded_symbol["size"]} options, total to pay is {symbol_expenses}')
-            del current_options[zip_date]
-    print(f'Summary for {day}/{month}/{year}: income: {today_income}, expenses {today_expenses}, '
-          f'daily total: {today_income - today_expenses}')
+                    today_expenses[curr_ratio] += symbol_expenses
+                    print(f'{curr_ratio}: For {curr_traded_symbol["symbol"]} the underlying price is'
+                          f' {underlying_price}, paying {pay_per_option} for {curr_traded_symbol["size"]} '
+                          f'options, total to pay is {symbol_expenses}')
+            del current_options[curr_ratio][zip_date]
+    print(f'Summary for {day}/{month}/{year}:')
+    for curr_ratio in ratio_params:
+        print(f'{curr_ratio}: income: {today_income[curr_ratio]}, expenses {today_expenses[curr_ratio]}, '
+              f'daily total: {today_income[curr_ratio] - today_expenses[curr_ratio]}')
+
     return today_income, today_expenses, all_today_trade
 
 
