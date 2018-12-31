@@ -23,7 +23,7 @@ PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
 DAYS_TO_PROCESS = 100
 MINIMUM_BID = 0.5
-EXPECTED_STOCK_CHANGE_RATIO = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
+EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
 
 
@@ -50,6 +50,8 @@ def process_source_dir(source_dir, snp_symbols):
         zip_file_obj = zipfile.ZipFile(zip_file)
         for curr_date in files_by_zip[zip_file]:
             day_index += 1
+            #if day_index < 5:
+            #    continue
             if day_index > DAYS_TO_PROCESS:
                 break
             date_info = files_by_zip[zip_file][curr_date]
@@ -112,6 +114,7 @@ def get_snp_symbols(snp_500_filename):
 
 def get_zip_files(zip_path):
     result = []
+    print(zip_path)
     with zipfile.ZipFile(zip_path, "r") as f:
         for name in f.namelist():
             result.append(name)
@@ -121,7 +124,8 @@ def get_zip_files(zip_path):
 def get_files_in_folder(folder_path):
     result = []
     for filename in os.listdir(folder_path):
-        result.append(filename)
+        if '.zip' in filename:
+            result.append(filename)
     result = sorted(result, key=filename_to_sort_number)
     return result
 
@@ -159,15 +163,23 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 
     # Only options that expire a week from today
     snp_options = snp_options[snp_options.Expiration >= zip_date + datetime.timedelta(days=1)]
-    snp_options = snp_options[snp_options.Expiration <= zip_date + datetime.timedelta(days=7)]
+    snp_options = snp_options[snp_options.Expiration <= zip_date + datetime.timedelta(days=8)]
     snp_options = snp_options[snp_options.Volume > 0]
     snp_options = snp_options[snp_options.Bid > 0]
     snp_options = snp_options[snp_options.IV < 4]
     #snp_options = snp_options.loc[(snp_options.groupby(
     #    ['UnderlyingSymbol', 'Expiration', 'Strike']).filter(lambda x: len(x) > 1)).index]
+#    try:
     if 'OptionPriceDifference' not in snp_options:
-        snp_options['OptionPriceDifference'] = snp_options.apply(lambda row: abs(row['UnderlyingPrice'] - row['Strike']),
-                                                             axis=1)
+        snp_options['OptionPriceDifference'] = snp_options.apply(lambda row: abs(row['UnderlyingPrice'] -
+                                                                                 row['Strike']), axis=1)
+    '''except Exception as e:
+        print('Caught exception:', e, "# of rows:", len(snp_options))
+        for row_index, row in snp_options.iterrows():
+            option_price_difference = abs(row['UnderlyingPrice'] - row['Strike'])
+            snp_options.set_value(row_index, 'OptionPriceDifference', option_price_difference)
+            print(f'Set row {row_index} to {option_price_difference}') '''
+
     symbol_grouped_options = snp_options.groupby('UnderlyingSymbol')
 
     # Filter options with strike closest to strike
