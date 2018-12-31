@@ -141,11 +141,7 @@ def get_files_from_zip_by_date(zip_path):
     files_in_date = {}
     csv_files_from_zip = get_zip_files(zip_path)
     for curr_csv in csv_files_from_zip:
-        m = re.search('(.+)_(\d\d\d\d)(\d\d)(\d\d)\.+', curr_csv)
-        file_type = m.group(1)
-        year = int(m.group(2))
-        month = int(m.group(3))
-        day = int(m.group(4))
+        file_type, year, month, day = parse_filename(curr_csv)
         date_key = f'{year}_{month}_{day}'
         if file_type in ['stockquotes', 'options']:
             if date_key not in files_in_date:
@@ -154,50 +150,42 @@ def get_files_from_zip_by_date(zip_path):
     return files_in_date
 
 
-def process_options_file(options_data, year, month, day, snp_symbols, current_options, ratio_params, bid_ratios):
-    print(f'Handling options for {day}/{month}/{year}')
-    zip_date = datetime.datetime(year=year, month=month, day=day)
+def parse_filename(filename):
+    m = re.search('(.+)_(\d\d\d\d)(\d\d)(\d\d)\.+', filename)
+    file_type = m.group(1)
+    year = int(m.group(2))
+    month = int(m.group(3))
+    day = int(m.group(4))
+    return file_type, year, month, day
 
-    snp_options = options_data[options_data.UnderlyingSymbol.isin(snp_symbols)].copy()
-    snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%m/%d/%Y')
 
-    # Only options that expire a week from today
-    snp_options = snp_options[snp_options.Expiration >= zip_date + datetime.timedelta(days=1)]
-    snp_options = snp_options[snp_options.Expiration <= zip_date + datetime.timedelta(days=8)]
-    snp_options = snp_options[snp_options.Volume > 0]
-    snp_options = snp_options[snp_options.Bid > 0]
-    snp_options = snp_options[snp_options.IV < 4]
-    #snp_options = snp_options.loc[(snp_options.groupby(
-    #    ['UnderlyingSymbol', 'Expiration', 'Strike']).filter(lambda x: len(x) > 1)).index]
-#    try:
-    if 'OptionPriceDifference' not in snp_options:
-        snp_options['OptionPriceDifference'] = snp_options.apply(lambda row: abs(row['UnderlyingPrice'] -
-                                                                                 row['Strike']), axis=1)
-    '''except Exception as e:
-        print('Caught exception:', e, "# of rows:", len(snp_options))
-        for row_index, row in snp_options.iterrows():
-            option_price_difference = abs(row['UnderlyingPrice'] - row['Strike'])
-            snp_options.set_value(row_index, 'OptionPriceDifference', option_price_difference)
-            print(f'Set row {row_index} to {option_price_difference}') '''
+def get_options_by_iv(options_data):
+    options_data['OptionPriceDifference'] = options_data.apply(lambda row: abs(row['UnderlyingPrice'] -
+                                                                               row['Strike']), axis=1)
+    symbol_grouped_options = options_data.groupby('UnderlyingSymbol')
 
-    symbol_grouped_options = snp_options.groupby('UnderlyingSymbol')
-
-    # Filter options with strike closest to strike
+    # Filter options with strike closest to stock price
     min_option_difference_index = \
-        symbol_grouped_options['OptionPriceDifference'].transform(min) >= snp_options['OptionPriceDifference']
-    closest_to_strike_options = snp_options[min_option_difference_index].copy()
+        symbol_grouped_options['OptionPriceDifference'].transform(min) >= options_data['OptionPriceDifference']
+    closest_to_strike_options = options_data[min_option_difference_index].copy()
 
     # Calculate IV as average between call and put of closest to strike for each expiration
     average_iv_expiration_grouped_closest_to_strike_options = closest_to_strike_options.groupby(
         ['UnderlyingSymbol', 'Expiration'])['IV'].mean()
     average_iv_expiration_grouped_closest_to_strike_options.sort_values(inplace=True, ascending=False)
-    #average_iv_expiration_grouped_closest_to_strike_options = \
-    #    average_iv_expiration_grouped_closest_to_strike_options.iloc(np.lexsort(
-    #        [average_iv_expiration_grouped_closest_to_strike_options.index,
-    #         -1 * average_iv_expiration_grouped_closest_to_strike_options.values]))
-    #max_iv_symbol_options = symbol_grouped_options['IV'].max()  # TODO: find options with strike closest to stock price, get the IV (avg call and put)
-    #max_iv_symbol_options = max_iv_symbol_options.iloc[np.lexsort([max_iv_symbol_options.index,
-    #                                                               -1 * max_iv_symbol_options.values])]
+    return average_iv_expiration_grouped_closest_to_strike_options
+
+
+def process_options_file(options_data, year, month, day, snp_symbols, current_options, ratio_params, bid_ratios):
+    print(f'Handling options for {day}/{month}/{year}')
+    zip_date = datetime.datetime(year=year, month=month, day=day)
+
+    snp_options = filter_snp_symbols(options_data, snp_symbols)  # options_data[options_data.UnderlyingSymbol.isin(snp_symbols)].copy()
+    snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%m/%d/%Y')
+
+    # Only options that expire a week from today
+    snp_options = filter_tradable_options(snp_options, zip_date, 1, 8, 4)
+    average_iv_expiration_grouped_closest_to_strike_options = get_options_by_iv(snp_options)
 
     trade_index = 0
     all_today_trade = dict()
@@ -310,6 +298,18 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 
     return today_income, today_expenses, all_today_trade
 
+
+def filter_snp_symbols(data, symbols):
+    return data[data.UnderlyingSymbol.isin(symbols)].copy()
+
+
+def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
+    data = data[data.Expiration >= trade_date + datetime.timedelta(days=min_days)]
+    data = data[data.Expiration <= trade_date + datetime.timedelta(days=max_days)]
+    data = data[data.Volume > 0]
+    data = data[data.Bid > 0]
+    data = data[data.IV < maximum_iv]
+    return data
 
 if __name__ == '__main__':
     start_time = time.time()
