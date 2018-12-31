@@ -42,7 +42,7 @@
 *Engine/bin/Debug/cache/data/*.zip
 */obj/*
 */bin/*
-*Data/*
+Data/*
 *Docker/*
 */Docker/*
 *Algorithm.Python/Lib/*
@@ -131,6 +131,7 @@ ipch/
 *.psess
 *.vsp
 *.vspx
+.vscode
 
 # TFS 2012 Local Workspace
 $tf/
