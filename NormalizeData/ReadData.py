@@ -28,11 +28,12 @@ import re
 import os
 from datetime import datetime
 import time
+import uuid
 
 DEST_DIR = ".\\Destination"
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
-DAILY_TRADE_MINUTE_TIMESTAMP = 55440000
+DAILY_TRADE_MINUTE_TIMESTAMP = 57480000
 
 
 def process_source_dir(source_dir, dest_dir, snp_symbols):
@@ -143,7 +144,7 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
     trade_zip_handle = None
     option_index = 0
     for index, row in options_data.iterrows():
-        if option_index > 20:
+        if option_index > 50:
             break
         stock_symbol = row['UnderlyingSymbol']
         if stock_symbol in snp_symbols:
@@ -179,7 +180,7 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                                     f'{expiration_date.month:02}{expiration_date.day:02}.csv'
                 open_interest_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["OpenInterest"]}'
                 open_interest_csv = csv_file_template.format("openinterest")
-                #open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
+                open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
                 option_quote_bid = row['Bid'] * 10000
                 option_quote_ask = row['Ask'] * 10000
                 option_quote_half_volume = int(row['Volume'] / 2)
@@ -187,12 +188,12 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                             f',{option_quote_bid},{option_quote_half_volume},{option_quote_ask},{option_quote_ask},' \
                             f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume}'
                 quote_csv = csv_file_template.format("quote")
-                #quote_zip_handle.writestr(quote_csv, quote_row)
+                quote_zip_handle.writestr(quote_csv, quote_row)
                 option_trade_last = row['Last'] * 10000
                 trade_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_trade_last},{option_trade_last},' \
                             f'{option_trade_last},{option_trade_last},{row["Volume"]}'
                 trade_csv = csv_file_template.format("trade")
-                #trade_zip_handle.writestr(trade_csv, trade_row)
+                trade_zip_handle.writestr(trade_csv, trade_row)
     if open_interest_zip_handle:
         open_interest_zip_handle.close()
     if quote_zip_handle:
