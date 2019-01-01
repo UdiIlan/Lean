@@ -263,3 +263,7 @@ Launcher/Plugins/*
 
 # python
 **/venv
+
+# NormalizeData
+NormalizeData/**/*.zip
+NormalizeData/**/*.csv
