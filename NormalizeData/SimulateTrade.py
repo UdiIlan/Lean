@@ -14,14 +14,16 @@ import os
 import math
 import time
 import datetime
+import json
 import numpy as np
+import matplotlib.pylab as plt
 
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
-DAYS_TO_PROCESS = 100
+DAYS_TO_PROCESS = 10000
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
@@ -39,6 +41,7 @@ def process_source_dir(source_dir, snp_symbols):
 
     day_index = 0
     open_positions = dict()
+    daily_status = dict()
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
         open_positions[curr_stock_ratio] = dict()
         total_profit[curr_stock_ratio] = dict()
@@ -64,7 +67,10 @@ def process_source_dir(source_dir, snp_symbols):
             (today_income, today_expenses, curr_trade) = process_options_file(options_data, year, month, day,
                                                                               snp_symbols, open_positions,
                                                                               EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO)
+            day_key = datetime.datetime(year=year, month=month, day=day)
+            daily_status[day_key] = dict()
             for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
+                daily_status[day_key][curr_stock_ratio] = dict()
                 for curr_bid_ratio in BID_RATIO:
                     for expiration_date in curr_trade[curr_stock_ratio][curr_bid_ratio]:
                         if expiration_date not in open_positions[curr_stock_ratio][curr_bid_ratio]:
@@ -77,10 +83,12 @@ def process_source_dir(source_dir, snp_symbols):
                     total_profit[curr_stock_ratio][curr_bid_ratio] += \
                         (today_income[curr_stock_ratio][curr_bid_ratio] -
                          today_expenses[curr_stock_ratio][curr_bid_ratio])
+                    current_status = total_profit[curr_stock_ratio][curr_bid_ratio] - open_positions_cost
                     print(f'{curr_stock_ratio},{curr_bid_ratio}: profit for {day}/{month}/{year}'
                           f' is {today_income[curr_stock_ratio][curr_bid_ratio] - today_expenses[curr_stock_ratio][curr_bid_ratio]}, '
                           f'total profit after {day_index} '
-                          f'days is {total_profit[curr_stock_ratio][curr_bid_ratio] - open_positions_cost}')
+                          f'days is {current_status}')
+                    daily_status[day_key][curr_stock_ratio][curr_bid_ratio] = current_status
             print(f'Processing options for {day}/{month}/{year} took {time.time() - options_start} seconds')
 
     # Reduce remaining open positions
@@ -91,7 +99,17 @@ def process_source_dir(source_dir, snp_symbols):
             print(f'{curr_stock_ratio},{curr_bid_ratio} Total profit: '
                   f'{total_profit[curr_stock_ratio][curr_bid_ratio]}')
 
-    print("Total profit", total_profit)
+    #print("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
+    print("Daily statuses", daily_status)
+    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO)
+    print("Total profit", json.dumps(total_profit, default=json_date_encoder))
+
+
+def json_date_encoder(o):
+    if isinstance(o, (datetime.date, datetime.datetime)):
+        return f'{o.day:02}/{o.month:02}/{o.year}'
+    else:
+        return o
 
 
 def calc_positions_cost(positions):
@@ -271,10 +289,13 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
         for curr_bid_ratio in bid_ratios:
             today_expenses[curr_stock_ratio][curr_bid_ratio] = 0
             if zip_date in current_options[curr_stock_ratio][curr_bid_ratio]:
+                missing_symbols = []
                 for curr_traded_symbol in current_options[curr_stock_ratio][curr_bid_ratio][zip_date]:
                     symbol_row = options_data[options_data.OptionSymbol == curr_traded_symbol['symbol']]
                     if symbol_row.shape[0] == 0:
-                        print('Missing symbol: {symbol_row}')
+                        print(f'{zip_date},{curr_stock_ratio}{curr_bid_ratio}'
+                              f' Missing symbol: {curr_traded_symbol["symbol"]}')
+                        missing_symbols.append(curr_traded_symbol['symbol'])
                     else:
                         underlying_price = symbol_row['UnderlyingPrice'].iloc[0]
                         strike_price = symbol_row['Strike'].iloc[0]
@@ -285,10 +306,19 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                             pay_per_option = strike_price - underlying_price
                         symbol_expenses = pay_per_option * curr_traded_symbol['size']
                         today_expenses[curr_stock_ratio][curr_bid_ratio] += symbol_expenses
-                        print(f'{curr_stock_ratio},{curr_bid_ratio}: For {curr_traded_symbol["symbol"]} the underlying price is'
-                              f' {underlying_price}, paying {pay_per_option} for {curr_traded_symbol["size"]} '
-                              f'options, total to pay is {symbol_expenses}')
-                del current_options[curr_stock_ratio][curr_bid_ratio][zip_date]
+                        print(f'{curr_stock_ratio},{curr_bid_ratio}: For {curr_traded_symbol["symbol"]} '
+                              f'the underlying price is {underlying_price}, paying {pay_per_option} for '
+                              f'{curr_traded_symbol["size"]} options, total to pay is {symbol_expenses}')
+                if len(missing_symbols) == 0:
+                    del current_options[curr_stock_ratio][curr_bid_ratio][zip_date]
+                else:
+                    current_options[curr_stock_ratio][curr_bid_ratio][zip_date][:] = \
+                        [curr_traded_symbol for curr_traded_symbol in
+                         current_options[curr_stock_ratio][curr_bid_ratio][zip_date] if not
+                         curr_traded_symbol['symbol'] in missing_symbols]
+                    if len(current_options[curr_stock_ratio][curr_bid_ratio][zip_date]) == 0:
+                        del current_options[curr_stock_ratio][curr_bid_ratio][zip_date]
+
     print(f'Summary for {day}/{month}/{year}:')
     for curr_stock_ratio in ratio_params:
         for curr_bid_ratio in bid_ratios:
@@ -301,6 +331,33 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 
 def filter_snp_symbols(data, symbols):
     return data[data.UnderlyingSymbol.isin(symbols)].copy()
+
+
+def plot_results(daily_results, ratio_params, bid_ratios):
+    dates = sorted(daily_results.keys())
+    status_by_bid = dict()
+    for curr_bid in bid_ratios:
+        status_by_bid[curr_bid] = dict()
+    for curr_stock_ratio in ratio_params:
+        for curr_bid in bid_ratios:
+            plot_y = []
+            for curr_date in dates:
+                plot_y.append(daily_results[curr_date][curr_stock_ratio][curr_bid])
+            status_by_bid[curr_bid][curr_stock_ratio] = plot_y
+    chart_index = 0
+    for curr_bid in status_by_bid:
+        chart_index += 1
+        plt.figure(chart_index)
+        ratio_index = 0
+        for curr_stock_ratio in ratio_params:
+            ratio_index += 1
+            if ratio_index % 2 == 0:
+                plt.plot(dates, status_by_bid[curr_bid][curr_stock_ratio], label=f'Stock Ratio={curr_stock_ratio}')
+        plt.legend(loc='upper left')
+        plt.xlabel('Date')
+        plt.ylabel('Profit / Loss (USD)')
+        plt.title(f'Bid Ratio = {curr_bid}')
+    plt.show()
 
 
 def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
