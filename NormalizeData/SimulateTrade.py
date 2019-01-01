@@ -23,7 +23,7 @@ SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
-DAYS_TO_PROCESS = 10000
+DAYS_TO_PROCESS = 300
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
@@ -243,9 +243,9 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
             #       For pricing take bid
             for curr_stock_ratio in ratio_params:
                 for curr_bid_ratio in bid_ratios:
-                    calls = calls[calls.Strike + curr_bid_ratio * calls.Bid + (1 - curr_bid_ratio) * calls.Ask >
+                    calls = calls[calls.Strike + 0.5 * calls.Bid + 0.5 * calls.Ask >
                                   calls.UnderlyingPrice * (1 + curr_stock_ratio)]
-                    puts = puts[puts.Strike - curr_bid_ratio * puts.Bid - (1 - curr_bid_ratio) * puts.Ask <
+                    puts = puts[puts.Strike - 0.5 * puts.Bid - 0.5 * puts.Ask <
                                 puts.UnderlyingPrice * (1 - curr_stock_ratio)]
                     calls.sort_values(by='Strike', inplace=True, ascending=True)
                     puts.sort_values(by='Strike', inplace=True, ascending=False)
