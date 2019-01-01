@@ -29,15 +29,19 @@ EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08
 BID_RATIO = [1, 0.5]
 
 
-def process_source_dir(source_dir, snp_symbols):
-    files_by_zip = {}
-    zip_files = get_files_in_folder(source_dir)
-    curr_trade = {}
-    written_options = []
+def process_source_dir(source_dir, snp_symbols, is_compressed):
+    input_files = []
     total_profit = dict()
-    for curr_file in zip_files:
-        file_path = os.path.join(source_dir, curr_file)
-        files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
+    if not is_compressed:
+        input_files = get_csv_files_in_folder(source_dir)
+    else:
+        zip_files = get_zip_files_in_folder(source_dir)
+        for curr_file in zip_files:
+            file_path = os.path.join(source_dir, curr_file)
+            #files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
+            files_in_curr_zip = get_files_from_zip_by_date(file_path)
+            for curr_zipped_file in files_in_curr_zip:
+                input_files.append({'zip': curr_file, 'data': files_in_curr_zip[curr_zipped_file]})
 
     day_index = 0
     open_positions = dict()
@@ -48,47 +52,52 @@ def process_source_dir(source_dir, snp_symbols):
         for curr_bid_ratio in BID_RATIO:
             open_positions[curr_stock_ratio][curr_bid_ratio] = dict()
             total_profit[curr_stock_ratio][curr_bid_ratio] = 0
-    for zip_file in files_by_zip:
-        print(f'Processing {zip_file}')
-        zip_file_obj = zipfile.ZipFile(zip_file)
-        for curr_date in files_by_zip[zip_file]:
-            day_index += 1
-            #if day_index < 5:
-            #    continue
-            if day_index > DAYS_TO_PROCESS:
-                break
-            date_info = files_by_zip[zip_file][curr_date]
+    prev_zip = ''
+    zip_file_obj = None
+    for input_file in input_files:
+        day_index += 1
+        options_start = time.time()
+        if day_index > DAYS_TO_PROCESS:
+            break
+        if not is_compressed:
+            print(f'Processing {input_file}')
+            _, year, month, day = parse_filename(input_file)
+            options_data = pd.read_csv(os.path.join(source_dir, input_file))
+        else:
+            if input_file['zip'] != prev_zip:
+                prev_zip = input_file['zip']
+                zip_file_obj = zipfile.ZipFile(os.path.join(source_dir, prev_zip))
+            date_info = input_file['data']
             options_file = date_info['options']
-            options_start = time.time()
             options_data = pd.read_csv(zip_file_obj.open(options_file))
             day = date_info['day']
             month = date_info['month']
             year = date_info['year']
-            (today_income, today_expenses, curr_trade) = process_options_file(options_data, year, month, day,
-                                                                              snp_symbols, open_positions,
-                                                                              EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO)
-            day_key = datetime.datetime(year=year, month=month, day=day)
-            daily_status[day_key] = dict()
-            for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
-                daily_status[day_key][curr_stock_ratio] = dict()
-                for curr_bid_ratio in BID_RATIO:
-                    for expiration_date in curr_trade[curr_stock_ratio][curr_bid_ratio]:
-                        if expiration_date not in open_positions[curr_stock_ratio][curr_bid_ratio]:
-                            open_positions[curr_stock_ratio][curr_bid_ratio][expiration_date] = \
-                                curr_trade[curr_stock_ratio][curr_bid_ratio][expiration_date]
-                        else:
-                            open_positions[curr_stock_ratio][curr_bid_ratio][expiration_date] += \
-                                curr_trade[curr_stock_ratio][curr_bid_ratio][expiration_date]
-                    open_positions_cost = calc_positions_cost(open_positions[curr_stock_ratio][curr_bid_ratio])
-                    total_profit[curr_stock_ratio][curr_bid_ratio] += \
-                        (today_income[curr_stock_ratio][curr_bid_ratio] -
-                         today_expenses[curr_stock_ratio][curr_bid_ratio])
-                    current_status = total_profit[curr_stock_ratio][curr_bid_ratio] - open_positions_cost
-                    print(f'{curr_stock_ratio},{curr_bid_ratio}: profit for {day}/{month}/{year}'
-                          f' is {today_income[curr_stock_ratio][curr_bid_ratio] - today_expenses[curr_stock_ratio][curr_bid_ratio]}, '
-                          f'total profit after {day_index} '
-                          f'days is {current_status}')
-                    daily_status[day_key][curr_stock_ratio][curr_bid_ratio] = current_status
+        (today_income, today_expenses, curr_trade) = process_options_file(options_data, year, month, day,
+                                                                          snp_symbols, open_positions,
+                                                                          EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO)
+        day_key = datetime.datetime(year=year, month=month, day=day)
+        daily_status[day_key] = dict()
+        for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
+            daily_status[day_key][curr_stock_ratio] = dict()
+            for curr_bid_ratio in BID_RATIO:
+                for expiration_date in curr_trade[curr_stock_ratio][curr_bid_ratio]:
+                    if expiration_date not in open_positions[curr_stock_ratio][curr_bid_ratio]:
+                        open_positions[curr_stock_ratio][curr_bid_ratio][expiration_date] = \
+                            curr_trade[curr_stock_ratio][curr_bid_ratio][expiration_date]
+                    else:
+                        open_positions[curr_stock_ratio][curr_bid_ratio][expiration_date] += \
+                            curr_trade[curr_stock_ratio][curr_bid_ratio][expiration_date]
+                open_positions_cost = calc_positions_cost(open_positions[curr_stock_ratio][curr_bid_ratio])
+                total_profit[curr_stock_ratio][curr_bid_ratio] += \
+                    (today_income[curr_stock_ratio][curr_bid_ratio] -
+                     today_expenses[curr_stock_ratio][curr_bid_ratio])
+                current_status = total_profit[curr_stock_ratio][curr_bid_ratio] - open_positions_cost
+                print(f'{curr_stock_ratio},{curr_bid_ratio}: profit for {day}/{month}/{year}'
+                      f' is {today_income[curr_stock_ratio][curr_bid_ratio] - today_expenses[curr_stock_ratio][curr_bid_ratio]}, '
+                      f'total profit after {day_index} '
+                      f'days is {current_status}')
+                daily_status[day_key][curr_stock_ratio][curr_bid_ratio] = current_status
             print(f'Processing options for {day}/{month}/{year} took {time.time() - options_start} seconds')
 
     # Reduce remaining open positions
@@ -139,12 +148,21 @@ def get_zip_files(zip_path):
     return result
 
 
-def get_files_in_folder(folder_path):
+def get_zip_files_in_folder(folder_path):
     result = []
     for filename in os.listdir(folder_path):
         if '.zip' in filename:
             result.append(filename)
     result = sorted(result, key=filename_to_sort_number)
+    return result
+
+
+def get_csv_files_in_folder(folder_path):
+    result = []
+    for filename in os.listdir(folder_path):
+        if '.csv' in filename:
+            result.append(filename)
+    result = sorted(result)
     return result
 
 
@@ -199,7 +217,10 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
     zip_date = datetime.datetime(year=year, month=month, day=day)
 
     snp_options = filter_snp_symbols(options_data, snp_symbols)  # options_data[options_data.UnderlyingSymbol.isin(snp_symbols)].copy()
-    snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%m/%d/%Y')
+    try:
+        snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%m/%d/%Y')
+    except Exception as e:
+        snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%Y/%m/%d')
 
     # Only options that expire a week from today
     snp_options = filter_tradable_options(snp_options, zip_date, 1, 8, 4)
@@ -371,6 +392,7 @@ def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
 if __name__ == '__main__':
     start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
-    process_source_dir(SOURCE_DIR, snp_500_symbols)
+    #process_source_dir(SOURCE_DIR, snp_500_symbols, True)
+    process_source_dir(".\\FilteredCSVs", snp_500_symbols, False)
     end_time = time.time()
     print("Processing took", end_time - start_time, "seconds")
