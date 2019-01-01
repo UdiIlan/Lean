@@ -27,7 +27,7 @@ if __name__ == '__main__':
                 month = date_info['month']
                 year = date_info['year']
                 zip_date = datetime.datetime(year=year, month=month, day=day)
-                snp_options = SimulateTrade.filter_tradable_options(snp_options, zip_date, 1, 8, 4)
+                snp_options = SimulateTrade.filter_tradable_options(snp_options, zip_date, 0, 8, 4)
                 snp_options.to_csv(os.path.join(".\\FilteredCSVs", f'options_{year}{month:02}{day:02}.csv'),
                                    index=False)
 
