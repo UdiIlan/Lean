@@ -17,9 +17,9 @@ if __name__ == '__main__':
             print(f'Filtering {zip_file}')
             zip_file_obj = zipfile.ZipFile(zip_file)
             for curr_date in files_by_zip[zip_file]:
+                file_time = time.time()
                 date_info = files_by_zip[zip_file][curr_date]
                 options_file = date_info['options']
-                print(f'Filtering {zip_file}\\{options_file}')
                 options_data = pd.read_csv(zip_file_obj.open(options_file))
                 snp_options = SimulateTrade.filter_snp_symbols(options_data, snp_500_symbols)
                 snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%m/%d/%Y')
@@ -27,9 +27,9 @@ if __name__ == '__main__':
                 month = date_info['month']
                 year = date_info['year']
                 zip_date = datetime.datetime(year=year, month=month, day=day)
-                snp_options = SimulateTrade.filter_tradable_options(snp_options, zip_date, 1, 8, 4)
+                snp_options = SimulateTrade.filter_tradable_options(snp_options, zip_date, 0, 8, 4)
                 snp_options.to_csv(os.path.join(".\\FilteredCSVs", f'options_{year}{month:02}{day:02}.csv'),
                                    index=False)
-
+                print(f'Filtering {zip_file}\\{options_file} took {time.time() - file_time} seconds')
     end_time = time.time()
     print("Processing took", end_time - start_time, "seconds")
