@@ -393,6 +393,9 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 def filter_snp_symbols(data, symbols):
     return data[data.UnderlyingSymbol.isin(symbols)].copy()
 
+def filter_equity_snp_symbols(data, symbols):
+    return data[data.symbol.isin(symbols)].copy()
+
 
 def plot_results(daily_results, ratio_params, bid_ratios, max_batch):
     dates = sorted(daily_results.keys())
