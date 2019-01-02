@@ -22,7 +22,7 @@ SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
-DAYS_TO_PROCESS = 3
+DAYS_TO_PROCESS = 30
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
@@ -319,25 +319,33 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
             #       For calls: first option (by strike) where Strike + OptionPrice > StockPrice * (1 + K)
             #       For Puts: first option (by strike) where Strike - OptionPrice < StockPrice * (1 - K)
             #       For pricing take bid
+            max_trades_per_ratio = MAX_TRADE_BATCH * DAILY_TRADE_OPTIONS
+            at_least_one_ratio_left_to_trade = False
             for curr_stock_ratio in ratio_params:
-                calls = calls[calls.Strike + 0.5 * calls.Bid + 0.5 * calls.Ask >
-                              calls.UnderlyingPrice * (1 + curr_stock_ratio)].copy()
-                puts = puts[puts.Strike - 0.5 * puts.Bid - 0.5 * puts.Ask <
-                            puts.UnderlyingPrice * (1 - curr_stock_ratio)].copy()
-                calls.sort_values(by='Strike', inplace=True, ascending=True)
-                puts.sort_values(by='Strike', inplace=True, ascending=False)
-                if calls.shape[0] > 0 and puts.shape[0] > 0:
-                    daily_trades_num[curr_stock_ratio] += 1
-                    trade_options_per_ratio[curr_stock_ratio].append({'calls': calls, 'puts': puts})
+                if daily_trades_num[curr_stock_ratio] < max_trades_per_ratio:
+                    at_least_one_ratio_left_to_trade = True
+                    calls = calls[calls.Strike + 0.5 * calls.Bid + 0.5 * calls.Ask >
+                                  calls.UnderlyingPrice * (1 + curr_stock_ratio)].copy()
+                    puts = puts[puts.Strike - 0.5 * puts.Bid - 0.5 * puts.Ask <
+                                puts.UnderlyingPrice * (1 - curr_stock_ratio)].copy()
+                    calls.sort_values(by='Strike', inplace=True, ascending=True)
+                    puts.sort_values(by='Strike', inplace=True, ascending=False)
+                    if calls.shape[0] > 0 and puts.shape[0] > 0:
+                        daily_trades_num[curr_stock_ratio] += 1
+                        trade_options_per_ratio[curr_stock_ratio].append({'calls': calls, 'puts': puts})
+            #if not at_least_one_ratio_left_to_trade:
+            #    break
 
     for curr_stock_ratio in ratio_params:
         if daily_trades_num[curr_stock_ratio] == 0:
             print(f'{day}/{month}/{year} Not trading in ratio={curr_stock_ratio}')
         else:
             trade_index = -1
-            batches_in_ratio = int(ratio_trade_indexes[curr_stock_ratio] / DAILY_TRADE_OPTIONS) + 1
+            batches_in_ratio = int(daily_trades_num[curr_stock_ratio] / DAILY_TRADE_OPTIONS)
+            if daily_trades_num[curr_stock_ratio] % DAILY_TRADE_OPTIONS > 0:
+                batches_in_ratio += 1
             print(f'Trading in {batches_in_ratio} batches for ratio {curr_stock_ratio}, total '
-                  f'{ratio_trade_indexes[curr_stock_ratio]} symbols')
+                  f'{daily_trades_num[curr_stock_ratio]} symbols {len(trade_options_per_ratio[curr_stock_ratio])}')
             for curr_trade in trade_options_per_ratio[curr_stock_ratio]:
                 trade_index += 1
                 trade_batch_index = int(trade_index / DAILY_TRADE_OPTIONS)
@@ -345,17 +353,18 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                     batch_symbols = DAILY_TRADE_OPTIONS
                 else:
                     batch_symbols = daily_trades_num[curr_stock_ratio] % DAILY_TRADE_OPTIONS
-                symbol_trade_in_ratio = int(batch_symbols / DAILY_TRADE_OPTIONS)
-                print(f'{day}/{month}/{year} trading in ratio={curr_stock_ratio} in '
+                    if batch_symbols == 0:
+                        batch_symbols = DAILY_TRADE_OPTIONS
+                symbol_trade_in_ratio = TRADE_PER_SYMBOL / batch_symbols
+                print(f'{day}/{month}/{year} {trade_index} trading in ratio={curr_stock_ratio} in '
                       f'{batch_symbols} symbols in batch {trade_batch_index + 1}, '
                       f'{symbol_trade_in_ratio} USD per symbol')
                 if trade_batch_index > MAX_TRADE_BATCH:
                     break
                 ratio_trade_indexes[curr_stock_ratio] += 1
                 calls = curr_trade['calls']
-                puts - curr_trade['puts']
+                puts = curr_trade['puts']
                 for curr_bid_ratio in bid_ratios:
-                    trade_index += 1
                     option_trade_symbols = [{'symbol': calls['OptionSymbol'].iloc[0],
                                              'price': curr_bid_ratio * calls['Bid'].iloc[0] +
                                                       (1 - curr_bid_ratio) * calls['Ask'].iloc[0],
