@@ -523,7 +523,7 @@ namespace QuantConnect
                 scale++;
             }
 
-            if (strike >= 1000000)
+            if (strike >= 1000000000)
             {
                 throw new ArgumentException("The specified strike price's precision is too high: " + str);
             }

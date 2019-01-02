@@ -135,13 +135,10 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
     cur_date = f'{year}{month:02}{day:02} 00:00'
     format_str = "{}"
     curr_stock_symbol = ''
-    option_index = 0
     output_path = os.path.join(dest_folder, 'option', 'usa', 'daily')
     ensure_dir_exist(output_path)
 
     for index, row in options_data.iterrows():
-        if option_index > 50:
-            break
         stock_symbol = row['UnderlyingSymbol']
         dir_format_path = f'{stock_symbol.lower()}_{format_str}_american'
         if stock_symbol in snp_symbols:
@@ -153,12 +150,9 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                 ensure_dir_exist(open_interest_dir)
                 ensure_dir_exist(quote_dir)
                 ensure_dir_exist(trade_dir)
-
-                option_index += 1
                 curr_stock_symbol = stock_symbol
 
-            # if open_interest_zip_handle and quote_zip_handle and trade_zip_handle:
-            expiration_date = datetime.strptime(row['Expiration'], "%m/%d/%Y")
+            expiration_date = datetime.strptime(row['Expiration'], "%Y-%m-%d")
             csv_file_template = f'{stock_symbol.lower()}_{format_str}_american_' \
                                 f'{row["Type"]}_{int(float(row["Strike"]) * 10000)}_{expiration_date.year}' \
                                 f'{expiration_date.month:02}{expiration_date.day:02}.csv'

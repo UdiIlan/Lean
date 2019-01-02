@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using MoreLinq;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
 using QuantConnect.Interfaces;
@@ -17,11 +18,15 @@ namespace QuantConnect.Algorithm.CSharp
         private bool registerForEOD = false;
 
         #region constants
-        private static readonly string[] S_AND_P_500_SYMOLS = { "AMZN" }; // { "FB", "JPM", "XOM", "GOOG", "GOOGL", "PFE", "UNH", "VZ", "V", "PG", "BAC", "CVX", "INTC", "T", "CSCO", "WFC", "MRK", "HD", "KO", "MA", "BA", "CMCSA", "DIS", "PEP", "MCD", "C", "WMT", "ABBV", "ORCL", "PM", "MDT", "AMGN", "ABT", "DWDP", "ADBE", "MMM", "NFLX", "IBM", "LLY", "UNP", "AVGO", "CRM", "HON", "MO", "ACN", "PYPL", "COST", "UTX", "TMO", "CVS", "NKE", "TXN", "NVDA", "BKNG", "GILD", "LIN", "NEE", "BMY", "SBUX", "USB", "COP", "AXP", "AMT", "CAT", "LOW", "LMT", "UPS", "ANTM", "QCOM", "WBA", "CME", "MDLZ", "DUK", "BIIB", "BDX", "DHR", "GS", "ADP", "CB", "EOG", "GE", "SPG", "ISRG", "TJX", "SLB", "PNC", "CL", "CHTR", "CSX", "ESRX", "MS", "INTU", "SYK", "FOXA", "BSX", "CI", "D", "SCHW", "OXY", "CELG", "RTN", "ILMN", "SO", "CCI", "GD", "AGN", "BLK", "DE", "NOC", "FDX", "GM", "EXC", "ICE", "VRTX", "BK", "NSC", "ZTS", "HUM", "MMC", "SPGI", "PLD", "MPC", "MU", "ITW", "KMB", "ECL", "AEP", "EMR", "MET", "CTSH", "COF", "PSX", "AON", "PGR", "ATVI", "HCA", "WM", "BBT", "HPQ", "DAL", "TGT", "FIS", "PRU", "EW", "APD", "AMAT", "F", "ADI", "BAX", "AFL", "AIG", "TRV", "SRE", "SHW", "MAR", "PSA", "STZ", "VLO", "RHT", "SYY", "EL", "FISV", "EQIX", "ETN", "KMI", "ROST", "KHC", "JCI", "ADSK", "REGN", "ROP", "WMB", "ALL", "YUM", "DG", "PEG", "ORLY", "CNC", "XEL", "WELL", "LYB", "EBAY", "APC", "LUV", "EQR", "AVB", "ED", "TEL", "GLW", "ALXN", "EA", "HAL", "APH", "STI", "ADM", "PPG", "TWTR", "VFC", "CXO", "MCK", "MCO", "OKE", "DLR", "STT", "FOX", "IR", "PXD", "WEC", "AZO", "KR", "GIS", "VTR", "MNST", "ZBH", "CCL", "A", "TROW", "XLNX", "ES", "MTB", "DFS", "PAYX", "LRCX", "DTE", "HPE", "HLT", "FTV", "CLX", "PPL", "MSI", "PH", "PCAR", "WLTW", "CMI", "UAL", "DLTR", "SBAC", "IQV", "BXP", "NTRS", "ROK", "FE", "O", "EIX", "VRSK", "WY", "MKC", "SWK", "INFO", "CERN", "IP", "NUE", "RCL", "APTV", "NEM", "AWK", "ESS", "OMC", "AMD", "HRS", "AEE", "IDXX", "MCHP", "KEY", "TDG", "VRSN", "CHD", "NTAP", "SYF", "CAH", "TSN", "BLL", "FITB", "DXC", "EVRG", "GPN", "CBS", "AME", "RSG", "RMD", "CTL", "FLT", "ETR", "ALGN", "AMP", "FAST", "FCX", "RF", "K", "FANG", "MYL", "HSY", "CFG", "CMS", "MTD", "MXIM", "HIG", "ABMD", "CTAS", "LLL", "WAT", "KLAC", "GPC", "CAG", "LH", "TSS", "BBY", "CNP", "HBAN", "ULTA", "EXPE", "CTXS", "AAL", "IFF", "HCP", "SYMC", "DVN", "AJG", "MSCI", "PCG", "HST", "ARE", "ABC", "SNPS", "VMC", "MGM", "HES", "GWW", "MRO", "IT", "CBRE", "HSIC", "ANSS", "NRG", "DRI", "TXT", "L", "EXR", "EXPD", "COO", "CDNS", "SWKS", "CHRW", "CMA", "DHI", "AAP", "HRL", "WCG", "WDC", "VNO", "TTWO", "CINF", "DGX", "ANET", "LEN", "LNC", "XYL", "TAP", "MOS", "CMG", "ETFC", "APA", "EFX", "DOV", "MAA", "HOLX", "CBOE", "BR", "AKAM", "INCY", "SJM", "UDR", "WRK", "KMX", "LW", "PFG", "KEYS", "COG", "UHS", "MLM", "VAR", "TSCO", "REG", "BHGE", "LNT", "NBL", "FTNT", "NOV", "SIVB", "KSS", "FMC", "JKHY", "NCLH", "VIAB", "AES", "WYNN", "STX", "EMN", "PNW", "FFIV", "NWL", "DRE", "NDAQ", "TPR", "KSU", "NI", "IRM", "RJF", "CPRT", "HAS", "FRT", "M", "JNPR", "ALB", "BEN", "CF", "PKI", "DISCK", "NLSN", "TIF", "RE", "MAS", "HFC", "FTI", "IPG", "PKG", "HII", "ARNC", "JBHT", "ADS", "ZION", "URI", "SNA", "ALLE", "XRAY", "WU", "TMK", "LKQ", "SLG", "GRMN", "AVY", "BF.B", "ALK", "PVH", "MHK", "QRVO", "AIV", "CPB", "WHR", "PRGO", "DVA", "BWA", "RHI", "LB", "DISH", "JEC", "IVZ", "KIM", "XEC", "PHM", "SCG", "UNM", "PNR", "HP", "TRIP", "NKTR", "AOS", "FL", "FLIR", "HOG", "GPS", "FBHS", "RL", "PBCT", "FLS", "KORS", "HRB", "ROL", "JWN", "XRX", "HBI", "SEE", "JEF", "AMG", "MAC", "GT", "LEG", "NWSA", "AIZ", "FLR", "PWR", "IPGP", "DISCA", "MAT", "UAA", "UA", "BHF", "COTY", "NFX", "NWS" };
-        private static readonly decimal M = 1.1M;
-        private static readonly decimal P = 1.00M;
-        private static readonly int D = 20;
+        // { "FB", "JPM", "XOM", "GOOG", "GOOGL", "PFE", "UNH", "VZ", "V", "PG", "BAC" }; // 
+        private static readonly string[] S_AND_P_500_SYMOLS = { "FB", "JPM", "XOM", "GOOG", "GOOGL", "PFE", "UNH", "VZ", "V", "PG", "BAC", "CVX", "INTC", "T", "CSCO", "WFC", "MRK", "HD", "KO", "MA", "BA", "CMCSA", "DIS", "PEP", "MCD", "C", "WMT", "ABBV", "ORCL", "PM", "MDT", "AMGN", "ABT", "DWDP", "ADBE", "MMM", "NFLX", "IBM", "LLY", "UNP", "AVGO", "CRM", "HON", "MO", "ACN", "PYPL", "COST", "UTX", "TMO", "CVS", "NKE", "TXN", "NVDA", "BKNG", "GILD", "NEE", "BMY", "SBUX", "USB", "COP", "AXP", "AMT", "CAT", "LOW", "LMT", "UPS", "ANTM", "QCOM", "WBA", "CME", "MDLZ", "DUK", "BIIB", "BDX", "DHR", "GS", "ADP", "CB", "EOG", "GE", "SPG", "ISRG", "TJX", "SLB", "PNC", "CL", "CHTR", "CSX", "ESRX", "MS", "INTU", "SYK", "FOXA", "BSX", "CI", "D", "SCHW", "OXY", "CELG", "RTN", "ILMN", "SO", "CCI", "GD", "AGN", "BLK", "DE", "NOC", "FDX", "GM", "EXC", "ICE", "VRTX", "BK", "NSC", "ZTS", "HUM", "MMC", "SPGI", "PLD", "MPC", "MU", "ITW", "KMB", "ECL", "AEP", "EMR", "MET", "CTSH", "COF", "PSX", "AON", "PGR", "ATVI", "HCA", "WM", "BBT", "HPQ", "DAL", "TGT", "FIS", "PRU", "EW", "APD", "AMAT", "F", "ADI", "BAX", "AFL", "AIG", "TRV", "SRE", "SHW", "MAR", "PSA", "STZ", "VLO", "RHT", "SYY", "EL", "FISV", "EQIX", "ETN", "KMI", "ROST", "KHC", "JCI", "ADSK", "REGN", "ROP", "WMB", "ALL", "YUM", "DG", "PEG", "ORLY", "CNC", "XEL", "WELL", "LYB", "EBAY", "APC", "LUV", "EQR", "AVB", "ED", "TEL", "GLW", "ALXN", "EA", "HAL", "APH", "STI", "ADM", "PPG", "TWTR", "VFC", "CXO", "MCK", "MCO", "OKE", "DLR", "STT", "FOX", "IR", "PXD", "WEC", "AZO", "KR", "GIS", "VTR", "MNST", "ZBH", "CCL", "A", "TROW", "XLNX", "ES", "MTB", "DFS", "PAYX", "LRCX", "DTE", "HPE", "HLT", "FTV", "CLX", "PPL", "MSI", "PH", "PCAR", "WLTW", "CMI", "UAL", "DLTR", "SBAC", "IQV", "BXP", "NTRS", "ROK", "FE", "O", "EIX", "VRSK", "WY", "MKC", "SWK", "INFO", "CERN", "IP", "NUE", "RCL", "APTV", "NEM", "AWK", "ESS", "OMC", "AMD", "HRS", "AEE", "IDXX", "MCHP", "KEY", "TDG", "VRSN", "CHD", "NTAP", "SYF", "CAH", "TSN", "BLL", "FITB", "DXC", "EVRG", "GPN", "CBS", "AME", "RSG", "RMD", "CTL", "FLT", "ETR", "ALGN", "AMP", "FAST", "FCX", "RF", "K", "FANG", "MYL", "HSY", "CFG", "CMS", "MTD", "MXIM", "HIG", "ABMD", "CTAS", "LLL", "WAT", "KLAC", "GPC", "CAG", "LH", "TSS", "BBY", "CNP", "HBAN", "ULTA", "EXPE", "CTXS", "AAL", "IFF", "HCP", "SYMC", "DVN", "AJG", "MSCI", "PCG", "HST", "ARE", "ABC", "SNPS", "VMC", "MGM", "HES", "GWW", "MRO", "IT", "CBRE", "HSIC", "ANSS", "NRG", "DRI", "TXT", "L", "EXR", "EXPD", "COO", "CDNS", "SWKS", "CHRW", "CMA", "DHI", "AAP", "HRL", "WCG", "WDC", "VNO", "TTWO", "CINF", "DGX", "ANET", "LEN", "LNC", "XYL", "TAP", "MOS", "CMG", "ETFC", "APA", "EFX", "DOV", "MAA", "HOLX", "CBOE", "BR", "AKAM", "INCY", "SJM", "UDR", "WRK", "KMX", "LW", "PFG", "KEYS", "COG", "UHS", "MLM", "VAR", "TSCO", "REG", "BHGE", "LNT", "NBL", "FTNT", "NOV", "SIVB", "KSS", "FMC", "JKHY", "NCLH", "VIAB", "AES", "WYNN", "STX", "EMN", "PNW", "FFIV", "NWL", "DRE", "NDAQ", "TPR", "KSU", "NI", "IRM", "RJF", "CPRT", "HAS", "FRT", "M", "JNPR", "ALB", "BEN", "CF", "PKI", "DISCK", "NLSN", "TIF", "RE", "MAS", "HFC", "FTI", "IPG", "PKG", "HII", "ARNC", "JBHT", "ADS", "ZION", "URI", "SNA", "ALLE", "XRAY", "WU", "TMK", "LKQ", "SLG", "GRMN", "AVY", "BF.B", "ALK", "PVH", "MHK", "QRVO", "AIV", "CPB", "WHR", "PRGO", "DVA", "BWA", "RHI", "LB", "DISH", "JEC", "IVZ", "KIM", "XEC", "PHM", "SCG", "UNM", "PNR", "HP", "TRIP", "NKTR", "AOS", "FL", "FLIR", "HOG", "GPS", "FBHS", "RL", "PBCT", "FLS", "KORS", "HRB", "ROL", "JWN", "XRX", "HBI", "SEE", "JEF", "AMG", "MAC", "GT", "LEG", "NWSA", "AIZ", "FLR", "PWR", "IPGP", "DISCA", "MAT", "UAA", "UA", "BHF", "COTY", "NFX", "NWS" };
+        private static readonly decimal M = 0.5M;
+        private static readonly decimal P = 1.10M;
+        private static readonly int D = 5;
         private static readonly int TRADE_PER_SYMBOL = 10;
+        //private static readonly int MAX_IV = 4;
+        //private static readonly int MAX_EXPIRATION_DAYS = 8;
+        //private static readonly int MIN_EXPIRATION_DAYS = 1;
         #endregion
 
         #region IRegressionAlgorithmDefinition 
@@ -71,20 +76,21 @@ namespace QuantConnect.Algorithm.CSharp
         /// </summary>
         public override void Initialize()
         {
-            //SetStartDate(2017, 1, 1);
-            //SetEndDate(2017, 12, 30);
+            SetStartDate(2018, 9, 1);
+            SetEndDate(2018, 9, 30);
 
-            SetStartDate(2013, 11, 01);
-            SetEndDate(2013, 11, 01);
+            //SetStartDate(2015, 12, 24);
+            //SetEndDate(2015, 12, 24);
             SetCash(1000000);
 
             foreach (string symbol in S_AND_P_500_SYMOLS)
             {
-                var option = AddOption(symbol, Resolution.Minute);
+                var option = AddOption(symbol, Resolution.Daily, null, false);
                 option.PriceModel = OptionPriceModels.BlackScholes();
 
                 // set our strike/expiry filter for this option chain
-                option.SetFilter((universe) => universe.WeeklysOnly().Expiration(TimeSpan.FromDays(0), TimeSpan.FromDays(7)));
+                //option.SetFilter((universe) => universe.WeeklysOnly().Expiration(TimeSpan.FromDays(0), TimeSpan.FromDays(7)));
+                //option.SetFilter(TimeSpan.FromDays(0), TimeSpan.FromDays(7));
 
                 if (!this.registerForEOD)
                 {
@@ -96,7 +102,7 @@ namespace QuantConnect.Algorithm.CSharp
                     Schedule.On(DateRules.EveryDay(option.Symbol), TimeRules.BeforeMarketClose(option.Symbol, 15), () =>
                     {
                         Log("EveryDay 15 min before markets close: Fired at: " + Time);
-                        this.liquidateExpiredOptions();
+                        this.LiquidateExpiredOptions();
                     });
                 }
             }
@@ -115,7 +121,7 @@ namespace QuantConnect.Algorithm.CSharp
         /// <param name="slice">The current slice of data keyed by symbol string</param>
         public override void OnData(Slice slice)
         {
-            this.operate(slice);
+            Operate(slice);
         }
 
         /// <summary>
@@ -132,77 +138,79 @@ namespace QuantConnect.Algorithm.CSharp
 
         #region class methods
 
-        private void operate(Slice slice)
+        private void Operate(Slice slice)
         {
-            var options = slice.OptionChains;
+            var tradableOptions = GetTradableOptions(slice.OptionChains);
 
-            // sort option according to their impllied volatility
-            var sortedOptions = options.OrderBy((x) => this.findVolatility(x.Value)).Select((x) => x.Value).ToArray();
+            if (!tradableOptions.Any()) return;
 
-            int size = sortedOptions.Length;
-            Debug($"sortedOptions len: {size}");
+            // sort tradable option according to their impllied volatility
+            var sortedOptions = tradableOptions.OrderBy((x) => x.IV);
+            Debug($"best option is: {sortedOptions.FirstOrDefault()}");
 
-            if (size > 0)
+            // trade the first D options with the highest impllied volatility
+            for (int i = 0; i < D && i < sortedOptions.Count(); i++)
             {
-                Debug($"best option is: {sortedOptions.First()}");
-            }
-
-            // trade the 5 option with the highest impllied volatility
-            for (int i = 0; i < D && i < sortedOptions.Length; i++)
-            {
-                this.tradeOption(sortedOptions[i]);
+                TradableOption option = sortedOptions.ElementAt(i);
+                TradeOptionContract(option.Call);
+                TradeOptionContract(option.Put);
             }
         }
 
 
-        private decimal findVolatility(OptionChain chain)
+        private void TradeOptionContract(OptionContract contract)
         {
 
-            decimal maxVolatility = chain.Max((x) => x.ImpliedVolatility);
-            return maxVolatility;
-        }
-
-        private void tradeOption(OptionChain chain)
-        {
-
-#if DEBUG
-            Debug("All contarcets in {chain.Underlying.Symbol} chain:");
-            this.printChain(chain);
-#endif
-
-            var contracts = chain.Where((x) => (x.BidPrice + x.Strike) > chain.Underlying.Price * P).OrderByDescending((x) => x.ImpliedVolatility);
-            if (!contracts.Any())
-            {
-                Debug($"Non OOM contacts found for: {chain.Underlying.Symbol}");
-                return;
-            }
-
-#if DEBUG
-            Debug($"Date: {Time} - trading for: {chain.Underlying.Symbol}");
-#endif
-            var calls = contracts.Where((x) => x.Right == OptionRight.Call && x.Expiry > Time.AddDays(1)).OrderByDescending((x) => x.Expiry);
-            var puts = contracts.Where((x) => x.Right == OptionRight.Put && x.Expiry > Time.AddDays(1)).OrderByDescending((x) => x.Expiry);
+            if (contract == null || contract.BidPrice == 0) return;
 
             int totalPrice = TRADE_PER_SYMBOL / 2;
-
-            // buy calls
-            var bestCall = calls.First();
-            if (bestCall.BidPrice > 0)
-            {
-                int quantity = (int)Math.Floor(totalPrice / bestCall.BidPrice);
-                LimitOrder(bestCall.Symbol, 1, bestCall.BidPrice);
-            }
-
-            // buy puts
-            var bestPut = puts.First();
-            if (bestPut.BidPrice > 0)
-            {
-                int quantity = (int)Math.Floor(totalPrice / bestPut.BidPrice);
-                LimitOrder(bestPut.Symbol, quantity, bestPut.BidPrice);
-            }
+            int quantity = (int)Math.Floor(totalPrice / contract.BidPrice);
+            decimal price = (contract.BidPrice + contract.AskPrice) / 2;
+            if (quantity > 0 && price > 0) LimitOrder(contract.Symbol, 1, price);
         }
 
-        private void liquidateExpiredOptions()
+        private List<TradableOption> GetTradableOptions(OptionChains chains)
+        {
+            List<TradableOption> res = new List<TradableOption>();
+
+            chains.Values.ToList().ForEach((chain) =>
+            {
+                //var contracts = chain.Contracts.Values.Where((x) =>
+                //{
+                //    return
+                //     x.BidPrice > M &
+                //     x.BidPrice > 0 &
+                //     x.ImpliedVolatility < MAX_IV &
+                //     x.Expiry >= Time.AddDays(MIN_EXPIRATION_DAYS) &
+                //     x.Expiry <= Time.AddDays(MAX_EXPIRATION_DAYS);
+                //});
+
+                var contracts = chain.Contracts.Values;
+
+                var calls = contracts.Where((x) => x.Right == OptionRight.Call);
+                var puts = contracts.Where((x) => x.Right == OptionRight.Put);
+
+                // get symbol IV out of the closest put&call avarage IV.
+                OptionContract closestCall = calls.MinBy((x) => Math.Abs(chain.Underlying.Price - x.Strike)).FirstOrDefault();
+                OptionContract closestPut = puts.MinBy((x) => Math.Abs(chain.Underlying.Price - x.Strike)).FirstOrDefault();
+                decimal IV = closestCall != null & closestPut != null ? (closestCall.ImpliedVolatility + closestPut.ImpliedVolatility) / 2 : 0;
+
+                OptionContract bestCall = calls.Where((x) => (x.BidPrice + x.Strike) > chain.Underlying.Price * P && x.BidPrice > M).OrderByDescending((x) => x.Expiry).FirstOrDefault();
+                OptionContract bestPut = puts.Where((x) => (x.BidPrice + x.Strike) > chain.Underlying.Price * P && x.BidPrice > M).OrderByDescending((x) => x.Expiry).FirstOrDefault();
+
+                res.Add(new TradableOption()
+                {
+                    Symbol = chain.Symbol,
+                    Call = bestCall,
+                    Put = bestPut,
+                    IV = IV
+                });
+
+            });
+            return res;
+        }
+
+        private void LiquidateExpiredOptions()
         {
             foreach (var option in Portfolio.Values)
             {
@@ -224,16 +232,16 @@ namespace QuantConnect.Algorithm.CSharp
             }
         }
 
-        private void printSlice(Slice slice)
+        private void PrintSlice(Slice slice)
         {
             var options = slice.OptionChains;
             foreach (var optionChain in options)
             {
-                printChain(optionChain.Value);
+                PrintChain(optionChain.Value);
             }
         }
 
-        private void printChain(OptionChain chain)
+        private void PrintChain(OptionChain chain)
         {
             foreach (var contract in chain)
             {
@@ -242,6 +250,31 @@ namespace QuantConnect.Algorithm.CSharp
         }
 
         #endregion
+    }
+
+    class TradableOption
+    {
+
+        public Symbol Symbol
+        {
+            get; set;
+        }
+
+        public decimal IV
+        {
+            get; set;
+        }
+
+        public OptionContract Put
+        {
+            get; set;
+        }
+
+        public OptionContract Call
+        {
+            get; set;
+        }
+
     }
 
 }

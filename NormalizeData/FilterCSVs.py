@@ -19,13 +19,21 @@ if __name__ == '__main__':
             for curr_date in files_by_zip[zip_file]:
                 file_time = time.time()
                 date_info = files_by_zip[zip_file][curr_date]
+                day = date_info['day']
+                month = date_info['month']
+                year = date_info['year']
+                
+                stock_quotes_file = date_info['stockquotes']
+                stock_quotes_data = pd.read_csv(zip_file_obj.open(stock_quotes_file))
+                snp_quotes = SimulateTrade.filter_equity_snp_symbols(stock_quotes_data, snp_500_symbols)
+                snp_quotes.to_csv(os.path.join(".\\FilteredCSVs", f'stockquotes_{year}{month:02}{day:02}.csv'),
+                                   index=False)
+                print(f'Filtering {zip_file}\\{stock_quotes_file} took {time.time() - file_time} seconds')
+
                 options_file = date_info['options']
                 options_data = pd.read_csv(zip_file_obj.open(options_file))
                 snp_options = SimulateTrade.filter_snp_symbols(options_data, snp_500_symbols)
                 snp_options['Expiration'] = pd.to_datetime(snp_options['Expiration'], format='%m/%d/%Y')
-                day = date_info['day']
-                month = date_info['month']
-                year = date_info['year']
                 zip_date = datetime.datetime(year=year, month=month, day=day)
                 snp_options = SimulateTrade.filter_tradable_options(snp_options, zip_date, 0, 8, 4)
                 snp_options.to_csv(os.path.join(".\\FilteredCSVs", f'options_{year}{month:02}{day:02}.csv'),
