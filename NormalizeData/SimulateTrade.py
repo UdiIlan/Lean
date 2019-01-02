@@ -22,11 +22,11 @@ SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
-DAYS_TO_PROCESS = 300
+DAYS_TO_PROCESS = 3
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
-MAX_TRADE_BATCH = 1
+MAX_TRADE_BATCH = 3
 
 
 def process_source_dir(source_dir, snp_symbols, is_compressed):
@@ -57,6 +57,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
                 open_positions[curr_stock_ratio][curr_bid_ratio][batch_index] = dict()
     prev_zip = ''
     zip_file_obj = None
+    all_trades = {}
     for input_file in input_files:
         day_index += 1
         options_start = time.time()
@@ -81,6 +82,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
                                                                           EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO,
                                                                           MAX_TRADE_BATCH)
         day_key = datetime.datetime(year=year, month=month, day=day)
+        all_trades[f'{day:02}/{month:02}/{year}'] = curr_trade
         daily_status[day_key] = dict()
         for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
             daily_status[day_key][curr_stock_ratio] = dict()
@@ -89,7 +91,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
                     for expiration_date in curr_trade[curr_stock_ratio][curr_bid_ratio][batch_index]:
                         if expiration_date not in open_positions[curr_stock_ratio][curr_bid_ratio][batch_index]:
                             open_positions[curr_stock_ratio][curr_bid_ratio][batch_index][expiration_date] = \
-                                curr_trade[curr_stock_ratio][curr_bid_ratio][batch_index][expiration_date]
+                                curr_trade[curr_stock_ratio][curr_bid_ratio][batch_index][expiration_date].copy()
                         else:
                             open_positions[curr_stock_ratio][curr_bid_ratio][batch_index][expiration_date] += \
                                 curr_trade[curr_stock_ratio][curr_bid_ratio][batch_index][expiration_date]
@@ -102,12 +104,8 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
                     daily_status[day_key][curr_stock_ratio][curr_bid_ratio] = dict()
                     for batch_index in range(MAX_TRADE_BATCH):
                         # Calculating again because maybe there are more batches because of the open positions
-                        income = 0
-                        if batch_index in today_income[curr_stock_ratio][curr_bid_ratio]:
-                            income = today_income[curr_stock_ratio][curr_bid_ratio][batch_index]
-                        expenses = 0
-                        if batch_index in today_expenses[curr_stock_ratio][curr_bid_ratio]:
-                            expenses = today_expenses[curr_stock_ratio][curr_bid_ratio][batch_index]
+                        income = today_income[curr_stock_ratio][curr_bid_ratio][batch_index]
+                        expenses = today_expenses[curr_stock_ratio][curr_bid_ratio][batch_index]
                         open_positions_cost = 0
                         if batch_index in open_positions[curr_stock_ratio][curr_bid_ratio]:
                             open_positions_cost = calc_positions_cost(
@@ -135,6 +133,30 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
     #print("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
     print("Daily statuses", daily_status)
     plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH)
+    all_trades_separate_dates = dict()
+    for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
+        all_trades_separate_dates[curr_stock_ratio] = dict()
+        for curr_bid_ratio in BID_RATIO:
+            all_trades_separate_dates[curr_stock_ratio][curr_bid_ratio] = dict()
+    for curr_date in all_trades:
+        for curr_stock_ratio in all_trades[curr_date]:
+            for curr_bid_ratio in all_trades[curr_date][curr_stock_ratio]:
+                all_trades_separate_dates[curr_stock_ratio][curr_bid_ratio][curr_date] = []
+                for batch_index in all_trades[curr_date][curr_stock_ratio][curr_bid_ratio]:
+                    if batch_index == 0:
+                        for curr_trade_date in list(
+                                all_trades[curr_date][curr_stock_ratio][curr_bid_ratio][batch_index].keys()):
+                            new_key = f'{curr_trade_date.day:02}/{curr_trade_date.month:02}/{curr_trade_date.year}'
+                            all_trades[curr_date][curr_stock_ratio][curr_bid_ratio][batch_index][new_key] = \
+                                all_trades[curr_date][curr_stock_ratio][curr_bid_ratio][batch_index][curr_trade_date]
+                            del all_trades[curr_date][curr_stock_ratio][curr_bid_ratio][batch_index][curr_trade_date]
+                            for curr_option in all_trades[curr_date][curr_stock_ratio][curr_bid_ratio][batch_index][new_key]:
+                                expiration = curr_option['expiration']
+                                curr_option['expiration'] = f'{expiration.day:02}/{expiration.month:02}/{expiration.year}'
+                                all_trades_separate_dates[curr_stock_ratio][
+                                    curr_bid_ratio][curr_date].append(curr_option)
+
+    print("Daily Trades", json.dumps(all_trades_separate_dates))
     print("Total profit", json.dumps(total_profit, default=json_date_encoder))
 
 
@@ -413,19 +435,28 @@ def plot_results(daily_results, ratio_params, bid_ratios, max_batch):
     chart_index = 0
     for curr_bid in status_by_bid:
         for batch_index in range(max_batch):
-            chart_index += 1
-            plt.figure(chart_index)
+            chart_index += 2
             ratio_index = 0
             for curr_stock_ratio in ratio_params:
                 ratio_index += 1
-                if ratio_index % 2 == 0:
-                    plt.plot(dates, status_by_bid[curr_bid][curr_stock_ratio][batch_index],
-                             label=f'Stock Ratio={curr_stock_ratio}')
-            plt.legend(loc='upper left')
-            plt.xlabel('Date')
-            plt.ylabel('Profit / Loss (USD)')
-            plt.title(f'Bid Ratio = {curr_bid}, Batch = {batch_index + 1}')
-            plt.savefig(f'Results_Bid_{curr_bid}_Batch_{batch_index + 1}.png')
+                if ratio_index % 2 == 1:
+                    plt.figure(chart_index)
+                else:
+                    plt.figure(chart_index - 1)
+                plt.plot(dates, status_by_bid[curr_bid][curr_stock_ratio][batch_index],
+                         label=f'Stock Ratio={curr_stock_ratio}')
+            for curr_chart in [chart_index - 1, chart_index]:
+                plt.figure(curr_chart)
+                plt.legend(loc='upper left')
+                plt.xlabel('Date')
+                plt.ylabel('Profit / Loss (USD)')
+                plt.title(f'Bid Ratio = {curr_bid}, Batch = {batch_index + 1}')
+                if curr_chart % 2 == 0:
+                    even = '_even'
+                else:
+                    even = ''
+                plt.savefig(f'Results_Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
+                print(f'Saved Results_Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
 
 
 def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
