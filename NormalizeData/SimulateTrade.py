@@ -16,20 +16,22 @@ import time
 import datetime
 import json
 import matplotlib.pylab as plt
+import logging
 
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
-TRADE_PER_SYMBOL = 1000
+TRADE_PER_SYMBOL = 5000
 DAYS_TO_PROCESS = 1
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
-MAX_TRADE_BATCH = 3
+MAX_TRADE_BATCH = 1
+MAX_SYMBOLS_TO_CHECK = 300
 
 
-def process_source_dir(source_dir, snp_symbols, is_compressed):
+def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir):
     start_time = datetime.datetime.now()
     input_files = []
     total_profit = dict()
@@ -133,7 +135,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
 
     #print("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
     print("Daily statuses", daily_status)
-    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH, start_time)
+    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH, start_time, results_dir)
     all_trades_separate_dates = dict()
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
         all_trades_separate_dates[curr_stock_ratio] = dict()
@@ -292,7 +294,11 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
             for batch_index in range(trade_batches):
                 today_income[curr_stock_ratio][curr_bid_ratio][batch_index] = 0
                 all_today_trade[curr_stock_ratio][curr_bid_ratio][batch_index] = dict()
+    symbol_index = 0
     for (trade_group, curr_iv) in average_iv_expiration_grouped_closest_to_strike_options.iteritems():
+        symbol_index += 1
+        if symbol_index > MAX_SYMBOLS_TO_CHECK:
+            break
         min_trade_in_ratio = min(daily_trades_num)
         min_batches = int(min_trade_in_ratio / DAILY_TRADE_OPTIONS)
         if min_batches >= MAX_TRADE_BATCH:
@@ -454,17 +460,12 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 def filter_snp_symbols(data, symbols):
     return data[data.UnderlyingSymbol.isin(symbols)].copy()
 
+
 def filter_equity_snp_symbols(data, symbols):
     return data[data.symbol.isin(symbols)].copy()
 
 
-def plot_results(daily_results, ratio_params, bid_ratios, max_batch, start_time):
-    try:
-        results_dir = f'Results_{start_time.year}_{start_time.month:02}_{start_time.day:02}_{start_time.hour:02}_' \
-                      f'{start_time.minute:02}_{start_time.second:02}'
-        os.makedirs(os.path.join('.', results_dir))
-    except Exception as e:
-        results_dir = ''
+def plot_results(daily_results, ratio_params, bid_ratios, max_batch, start_time, results_dir):
     dates = sorted(daily_results.keys())
     status_by_bid = dict()
     for curr_bid in bid_ratios:
@@ -514,9 +515,30 @@ def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
     return data
 
 if __name__ == '__main__':
+    global log
+    run_time = datetime.datetime.now()
+    time_text = f'{run_time.year}_{run_time.month:02}_{run_time.day:02}_{run_time.hour:02}_{run_time.minute:02}_' \
+                f'{run_time.second}'
+    results_dir = f'Results_{time_text}'
+    os.makedirs(results_dir)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)'
+                                  's%(thread)d %(message)s')
+    logging.basicConfig(format='%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)s'
+                               ' %(thread)d %(message)s', filename=os.path.join(results_dir,
+                                                                                f'Simulate_{time_text}.log'))
+    """fh = logging.FileHandler(os.path.join(results_dir, f'Simulate_{time_text}.log'))
+    fh.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)"""
+    log = logging.getLogger('SimulateTrade')
+    #log.addHandler(fh)
+    #log.addHandler(ch)
+    log.info("Starting")
     start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
     #process_source_dir(SOURCE_DIR, snp_500_symbols, True)
-    process_source_dir(".\\FilteredCSVs", snp_500_symbols, False)
+    process_source_dir(".\\FilteredCSVs", snp_500_symbols, False, results_dir)
     end_time = time.time()
     print("Processing took", end_time - start_time, "seconds")
