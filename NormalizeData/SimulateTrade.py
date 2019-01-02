@@ -22,7 +22,7 @@ SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 1000
-DAYS_TO_PROCESS = 30
+DAYS_TO_PROCESS = 1
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
@@ -30,6 +30,7 @@ MAX_TRADE_BATCH = 3
 
 
 def process_source_dir(source_dir, snp_symbols, is_compressed):
+    start_time = datetime.datetime.now()
     input_files = []
     total_profit = dict()
     if not is_compressed:
@@ -132,7 +133,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
 
     #print("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
     print("Daily statuses", daily_status)
-    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH)
+    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH, start_time)
     all_trades_separate_dates = dict()
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
         all_trades_separate_dates[curr_stock_ratio] = dict()
@@ -457,7 +458,13 @@ def filter_equity_snp_symbols(data, symbols):
     return data[data.symbol.isin(symbols)].copy()
 
 
-def plot_results(daily_results, ratio_params, bid_ratios, max_batch):
+def plot_results(daily_results, ratio_params, bid_ratios, max_batch, start_time):
+    try:
+        results_dir = f'Results_{start_time.year}_{start_time.month:02}_{start_time.day:02}_{start_time.hour:02}_' \
+                      f'{start_time.minute:02}_{start_time.second:02}'
+        os.makedirs(os.path.join('.', results_dir))
+    except Exception as e:
+        results_dir = ''
     dates = sorted(daily_results.keys())
     status_by_bid = dict()
     for curr_bid in bid_ratios:
@@ -493,8 +500,9 @@ def plot_results(daily_results, ratio_params, bid_ratios, max_batch):
                     even = '_even'
                 else:
                     even = ''
-                plt.savefig(f'Results_Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
-                print(f'Saved Results_Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
+                figure_path = os.path.join(results_dir, f'Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
+                plt.savefig(figure_path)
+                print(f'Saved {figure_path}')
 
 
 def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
