@@ -17,6 +17,9 @@ import datetime
 import json
 import matplotlib.pylab as plt
 import logging
+from datetime import date
+from utils import parse_date
+import sys
 
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
@@ -31,14 +34,14 @@ MAX_TRADE_BATCH = 1
 MAX_SYMBOLS_TO_CHECK = 300
 
 
-def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir):
+def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, start_date, end_date):
     start_time = datetime.datetime.now()
     input_files = []
     total_profit = dict()
     if not is_compressed:
-        input_files = get_csv_files_in_folder(source_dir)
+        input_files = get_csv_files_in_folder(source_dir, start_date, end_date)
     else:
-        zip_files = get_zip_files_in_folder(source_dir)
+        zip_files = get_zip_files_in_folder(source_dir, start_date, end_date)
         for curr_file in zip_files:
             file_path = os.path.join(source_dir, curr_file)
             #files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
@@ -64,8 +67,8 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir):
     for input_file in input_files:
         day_index += 1
         options_start = time.time()
-        if day_index > DAYS_TO_PROCESS:
-            break
+        # if day_index > DAYS_TO_PROCESS:
+        #     break
         if not is_compressed:
             print(f'Processing {input_file}')
             _, year, month, day = parse_filename(input_file)
@@ -197,20 +200,35 @@ def get_zip_files(zip_path):
     return result
 
 
-def get_zip_files_in_folder(folder_path):
+def get_zip_files_in_folder(folder_path, start_date, end_date):
     result = []
     for filename in os.listdir(folder_path):
         if '.zip' in filename:
-            result.append(filename)
+            m = re.search('(.+)_(.+)\.zip', filename)
+            year = int(m.group(1))
+            month = time.strptime(m.group(2), '%B').tm_mon
+            file_date = date(year, month, 1)
+            if start_date is not None and end_date is not None:
+                if file_date >= start_date and file_date <= end_date:
+                    result.append(filename)
+            else:
+                result.append(filename)
     result = sorted(result, key=filename_to_sort_number)
     return result
 
 
-def get_csv_files_in_folder(folder_path):
+def get_csv_files_in_folder(folder_path, start_date, end_date):
     result = []
     for filename in os.listdir(folder_path):
         if '.csv' in filename:
-            result.append(filename)
+            m = re.search('(.+)_(.+)\.csv', filename)
+            date_part = m.group(2)
+            year = int(date_part[0:4])
+            month = int(date_part[4:6])
+            day = int(date_part[6:8])
+            file_date = date(year, month, day)
+            if file_date >= start_date and file_date <= end_date:
+                result.append(filename)
     result = sorted(result)
     return result
 
@@ -538,7 +556,23 @@ if __name__ == '__main__':
     log.info("Starting")
     start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
-    #process_source_dir(SOURCE_DIR, snp_500_symbols, True)
-    process_source_dir(".\\FilteredCSVs", snp_500_symbols, False, results_dir)
+
+    start_date = date(1950, 1, 1) 
+    end_date = date.today()
+    is_compressed = False
+
+    if len(sys.argv) > 1:
+        start_date =  parse_date(sys.argv[1])
+        print(f'Set simulation start date to: {start_date}')
+    if len(sys.argv) > 2:
+        end_date = parse_date(sys.argv[2])
+        print(f'Set simulation end date to: {end_date}')
+    if len(sys.argv) > 3:
+        is_compressed = bool(sys.argv[3].lower())
+
+    src_dir = ".\\FilteredCSVs_ziped" if is_compressed else ".\\FilteredCSVs"
+
+    process_source_dir(src_dir, snp_500_symbols, is_compressed, results_dir, start_date, end_date)
+
     end_time = time.time()
     print("Processing took", end_time - start_time, "seconds")

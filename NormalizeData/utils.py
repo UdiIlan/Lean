@@ -1,5 +1,6 @@
 import os
 import zipfile
+from datetime import date
 
 def ensure_dir_exist(dir_path):
      if not os.path.exists(dir_path):
@@ -32,3 +33,14 @@ def archive(path):
         os.remove(path)
         
     zip_file_handle.close()
+
+
+def parse_date(date_str):
+    if not '/' in date_str:
+        raise Exception('Invalid date format (supported format is: \'d/m/Y\'.')
+    
+    parts = date_str.split('/')
+    if len(parts) != 3:
+        raise Exception('Invalid date format (supported format is: \'d/m/Y\'.')
+    
+    return date(int(parts[2]), int(parts[1]), int(parts[0]))
