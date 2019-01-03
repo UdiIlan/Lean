@@ -181,19 +181,23 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
                 open_interest_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{row["OpenInterest"]}'
                 open_interest_csv = csv_file_template.format("openinterest")
                 open_interest_zip_handle.writestr(open_interest_csv, open_interest_row)
+
                 option_quote_bid = row['Bid'] * 10000
                 option_quote_ask = row['Ask'] * 10000
                 option_quote_half_volume = int(row['Volume'] / 2)
+                iv = row['IV']
                 quote_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_quote_bid},{option_quote_bid},{option_quote_bid}' \
                             f',{option_quote_bid},{option_quote_half_volume},{option_quote_ask},{option_quote_ask},' \
-                            f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume}'
+                            f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume},{iv}'
                 quote_csv = csv_file_template.format("quote")
                 quote_zip_handle.writestr(quote_csv, quote_row)
+
                 option_trade_last = row['Last'] * 10000
                 trade_row = f'{DAILY_TRADE_MINUTE_TIMESTAMP},{option_trade_last},{option_trade_last},' \
                             f'{option_trade_last},{option_trade_last},{row["Volume"]}'
                 trade_csv = csv_file_template.format("trade")
                 trade_zip_handle.writestr(trade_csv, trade_row)
+
     if open_interest_zip_handle:
         open_interest_zip_handle.close()
     if quote_zip_handle:

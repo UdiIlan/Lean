@@ -29,6 +29,8 @@ import os
 from datetime import datetime
 import time
 import uuid
+from utils import ensure_dir_exist, archive_dir_folders, archive_dir_files
+import sys
 
 DEST_DIR = ".\\Destination"
 SOURCE_DIR = '.\\Source'
@@ -125,10 +127,6 @@ def process_stocks_file(stocks_data, year, month, day, dest_folder, snp_symbols)
             with open(stockquote_filename, "a") as stock_csv_file:
                 stock_csv_file.write(stock_row)
 
-def ensure_dir_exist(dir_path):
-     if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
 
 def process_options_file(options_data, year, month, day, dest_folder, snp_symbols):
     print(f'Handling options for {day}/{month}/{year}')
@@ -164,9 +162,11 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
             option_quote_bid = row['Bid'] * 10000
             option_quote_ask = row['Ask'] * 10000
             option_quote_half_volume = int(row['Volume'] / 2)
+            iv = row['IV']
             quote_row = f'{cur_date},{option_quote_bid},{option_quote_bid},{option_quote_bid}' \
                         f',{option_quote_bid},{option_quote_half_volume},{option_quote_ask},{option_quote_ask},' \
-                        f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume}\n'
+                        f'{option_quote_ask},{option_quote_ask},{option_quote_half_volume},' \
+                        f'{iv}\n'
             quote_csv =  os.path.join(quote_dir, csv_file_template.format("quote"))
             with open(quote_csv, "a") as quote_csv_file:
                 quote_csv_file.write(quote_row)
@@ -177,40 +177,14 @@ def process_options_file(options_data, year, month, day, dest_folder, snp_symbol
             trade_csv = os.path.join(trade_dir, csv_file_template.format("trade"))
             with open(trade_csv, "a") as trade_csv_file:
                 trade_csv_file.write(trade_row)
-
-def archive_dir_files(path):
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            archive(os.path.join(root, file))
-
-def archive_dir_folders(path):
-    for root, dirs, files in os.walk(path):
-        for dr in dirs:
-            archive(os.path.join(root, dr))
-
-
-def archive(path):
-    zip_file_name=f'{os.path.splitext(path)[0]}.zip'
-    # print(f'zip file name: {zip_file_name}')
-    zip_file_handle = zipfile.ZipFile(zip_file_name, 'a', zipfile.ZIP_DEFLATED)
-
-    if os.path.isdir(path):
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                zip_file_handle.write(file_path, arcname=os.path.basename(file))
-                os.remove(file_path)
-        os.rmdir(path)
-    else:
-        zip_file_handle.write(path, arcname=os.path.basename(path))
-        os.remove(path)
-
-    zip_file_handle.close()
-
+                
 
 if __name__ == '__main__':
     start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
-    process_source_dir(SOURCE_DIR, DEST_DIR, snp_500_symbols)
+    src_dir = SOURCE_DIR
+    if len(sys.argv) > 1:
+        src_dir = sys.argv[1]
+    process_source_dir(src_dir, DEST_DIR, snp_500_symbols)
     end_time = time.time()
     print("Processing took", end_time - start_time, "seconds")
