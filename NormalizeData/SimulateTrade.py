@@ -16,20 +16,23 @@ import time
 import datetime
 import json
 import matplotlib.pylab as plt
+import logging
 
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
-TRADE_PER_SYMBOL = 1000
-DAYS_TO_PROCESS = 3
+TRADE_PER_SYMBOL = 5000
+DAYS_TO_PROCESS = 1
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
-MAX_TRADE_BATCH = 3
+MAX_TRADE_BATCH = 1
+MAX_SYMBOLS_TO_CHECK = 300
 
 
-def process_source_dir(source_dir, snp_symbols, is_compressed):
+def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir):
+    start_time = datetime.datetime.now()
     input_files = []
     total_profit = dict()
     if not is_compressed:
@@ -132,7 +135,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed):
 
     #print("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
     print("Daily statuses", daily_status)
-    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH)
+    plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH, start_time, results_dir)
     all_trades_separate_dates = dict()
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
         all_trades_separate_dates[curr_stock_ratio] = dict()
@@ -276,23 +279,31 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
     trade_index = 0
     all_today_trade = dict()
     today_income = dict()
+    daily_trades_num = dict()
+    trade_options_per_ratio = dict()
+    ratio_trade_indexes = dict()
     for curr_stock_ratio in ratio_params:
         today_income[curr_stock_ratio] = dict()
         all_today_trade[curr_stock_ratio] = dict()
+        daily_trades_num[curr_stock_ratio] = 0
+        trade_options_per_ratio[curr_stock_ratio] = []
+        ratio_trade_indexes[curr_stock_ratio] = 0
         for curr_bid_ratio in bid_ratios:
             today_income[curr_stock_ratio][curr_bid_ratio] = dict()
             all_today_trade[curr_stock_ratio][curr_bid_ratio] = dict()
             for batch_index in range(trade_batches):
                 today_income[curr_stock_ratio][curr_bid_ratio][batch_index] = 0
                 all_today_trade[curr_stock_ratio][curr_bid_ratio][batch_index] = dict()
+    symbol_index = 0
     for (trade_group, curr_iv) in average_iv_expiration_grouped_closest_to_strike_options.iteritems():
-        #if trade_index >= DAILY_TRADE_OPTIONS:
-        #    break
-        trade_batch_index = int(trade_index / DAILY_TRADE_OPTIONS)
-        if trade_batch_index >= MAX_TRADE_BATCH:
+        symbol_index += 1
+        if symbol_index > MAX_SYMBOLS_TO_CHECK:
+            break
+        min_trade_in_ratio = min(daily_trades_num)
+        min_batches = int(min_trade_in_ratio / DAILY_TRADE_OPTIONS)
+        if min_batches >= MAX_TRADE_BATCH:
             break
         trade_symbol = trade_group[0]
-        #print(f'Trading option for {trade_symbol}')
         symbol_option_chain = snp_options[snp_options.UnderlyingSymbol == trade_symbol]
 
         # Filtering only out of market options that are actually traded and cost more then MINIMUN_BID
@@ -315,48 +326,82 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
             #       For calls: first option (by strike) where Strike + OptionPrice > StockPrice * (1 + K)
             #       For Puts: first option (by strike) where Strike - OptionPrice < StockPrice * (1 - K)
             #       For pricing take bid
+            max_trades_per_ratio = MAX_TRADE_BATCH * DAILY_TRADE_OPTIONS
+            at_least_one_ratio_left_to_trade = False
             for curr_stock_ratio in ratio_params:
-                for curr_bid_ratio in bid_ratios:
+                if daily_trades_num[curr_stock_ratio] < max_trades_per_ratio:
+                    at_least_one_ratio_left_to_trade = True
                     calls = calls[calls.Strike + 0.5 * calls.Bid + 0.5 * calls.Ask >
-                                  calls.UnderlyingPrice * (1 + curr_stock_ratio)]
+                                  calls.UnderlyingPrice * (1 + curr_stock_ratio)].copy()
                     puts = puts[puts.Strike - 0.5 * puts.Bid - 0.5 * puts.Ask <
-                                puts.UnderlyingPrice * (1 - curr_stock_ratio)]
+                                puts.UnderlyingPrice * (1 - curr_stock_ratio)].copy()
                     calls.sort_values(by='Strike', inplace=True, ascending=True)
                     puts.sort_values(by='Strike', inplace=True, ascending=False)
-                    if calls.shape[0] == 0 or puts.shape[0] == 0:
-                        pass
-                        #print(f'No tradable options for symbol {trade_symbol} according to parameter '
-                        #      f'{EXPECTED_STOCK_CHANGE_RATIO}')
                     if calls.shape[0] > 0 and puts.shape[0] > 0:
-                        trade_index += 1
-                        option_trade_symbols = [{'symbol': calls['OptionSymbol'].iloc[0],
-                                                 'price': curr_bid_ratio * calls['Bid'].iloc[0] +
-                                                          (1 - curr_bid_ratio) * calls['Ask'].iloc[0],
-                                                 'type': 'call',
-                                                 'expiration': calls['Expiration'].iloc[0],
-                                                 'underlying_symbol': calls['UnderlyingSymbol'].iloc[0],
-                                                 'strike': calls['Strike'].iloc[0]},
-                                                {'symbol': puts['OptionSymbol'].iloc[0],
-                                                 'price': curr_bid_ratio * puts['Bid'].iloc[0] + (
-                                                         1 - curr_bid_ratio) * puts['Ask'].iloc[0],
-                                                 'type': 'put',
-                                                 'expiration': puts['Expiration'].iloc[0],
-                                                 'underlying_symbol': puts['UnderlyingSymbol'].iloc[0],
-                                                 'strike': puts['Strike'].iloc[0]}]
-                        for curr_option_trade_symbol in option_trade_symbols:
-                            trade_size = int(math.floor((TRADE_PER_SYMBOL / len(option_trade_symbols)) /
-                                                        curr_option_trade_symbol['price']))
-                            curr_option_trade_symbol['size'] = trade_size
-                            print(f'{curr_stock_ratio},{curr_bid_ratio},{trade_batch_index}: Writing '
-                                  f'{trade_size} * {curr_option_trade_symbol["symbol"]} for '
-                                  f'{curr_option_trade_symbol["price"]}')
-                            today_income[curr_stock_ratio][curr_bid_ratio][trade_batch_index] += \
-                                curr_option_trade_symbol['price'] * trade_size
-                            if curr_option_trade_symbol['expiration'] not in \
-                                    all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index]:
-                                all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index][curr_option_trade_symbol['expiration']] = []
-                            all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index][curr_option_trade_symbol['expiration']].append(
-                                curr_option_trade_symbol)
+                        daily_trades_num[curr_stock_ratio] += 1
+                        trade_options_per_ratio[curr_stock_ratio].append({'calls': calls, 'puts': puts})
+            #if not at_least_one_ratio_left_to_trade:
+            #    break
+
+    for curr_stock_ratio in ratio_params:
+        if daily_trades_num[curr_stock_ratio] == 0:
+            print(f'{day}/{month}/{year} Not trading in ratio={curr_stock_ratio}')
+        else:
+            trade_index = -1
+            batches_in_ratio = int(daily_trades_num[curr_stock_ratio] / DAILY_TRADE_OPTIONS)
+            if daily_trades_num[curr_stock_ratio] % DAILY_TRADE_OPTIONS > 0:
+                batches_in_ratio += 1
+            print(f'Trading in {batches_in_ratio} batches for ratio {curr_stock_ratio}, total '
+                  f'{daily_trades_num[curr_stock_ratio]} symbols {len(trade_options_per_ratio[curr_stock_ratio])}')
+            for curr_trade in trade_options_per_ratio[curr_stock_ratio]:
+                trade_index += 1
+                trade_batch_index = int(trade_index / DAILY_TRADE_OPTIONS)
+                if trade_batch_index + 1 < batches_in_ratio:
+                    batch_symbols = DAILY_TRADE_OPTIONS
+                else:
+                    batch_symbols = daily_trades_num[curr_stock_ratio] % DAILY_TRADE_OPTIONS
+                    if batch_symbols == 0:
+                        batch_symbols = DAILY_TRADE_OPTIONS
+                symbol_trade_in_ratio = TRADE_PER_SYMBOL / batch_symbols
+                print(f'{day}/{month}/{year} {trade_index} trading in ratio={curr_stock_ratio} in '
+                      f'{batch_symbols} symbols in batch {trade_batch_index + 1}, '
+                      f'{symbol_trade_in_ratio} USD per symbol')
+                if trade_batch_index > MAX_TRADE_BATCH:
+                    break
+                ratio_trade_indexes[curr_stock_ratio] += 1
+                calls = curr_trade['calls']
+                puts = curr_trade['puts']
+                for curr_bid_ratio in bid_ratios:
+                    option_trade_symbols = [{'symbol': calls['OptionSymbol'].iloc[0],
+                                             'price': curr_bid_ratio * calls['Bid'].iloc[0] +
+                                                      (1 - curr_bid_ratio) * calls['Ask'].iloc[0],
+                                             'type': 'call',
+                                             'expiration': calls['Expiration'].iloc[0],
+                                             'underlying_symbol': calls['UnderlyingSymbol'].iloc[0],
+                                             'strike': calls['Strike'].iloc[0]},
+                                            {'symbol': puts['OptionSymbol'].iloc[0],
+                                             'price': curr_bid_ratio * puts['Bid'].iloc[0] + (
+                                                     1 - curr_bid_ratio) * puts['Ask'].iloc[0],
+                                             'type': 'put',
+                                             'expiration': puts['Expiration'].iloc[0],
+                                             'underlying_symbol': puts['UnderlyingSymbol'].iloc[0],
+                                             'strike': puts['Strike'].iloc[0]}]
+                    for curr_option_trade_symbol in option_trade_symbols:
+                        trade_size = int(math.floor((symbol_trade_in_ratio / len(option_trade_symbols)) /
+                                                    curr_option_trade_symbol['price']))
+                        curr_option_trade_symbol['size'] = trade_size
+                        print(f'{curr_stock_ratio},{curr_bid_ratio},{trade_batch_index}: Writing '
+                              f'{trade_size} * {curr_option_trade_symbol["symbol"]} for '
+                              f'{curr_option_trade_symbol["price"]}')
+                        today_income[curr_stock_ratio][curr_bid_ratio][trade_batch_index] += \
+                            curr_option_trade_symbol['price'] * trade_size
+                        if curr_option_trade_symbol['expiration'] not in \
+                                all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index]:
+                            all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index][
+                                curr_option_trade_symbol['expiration']] = []
+                        all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index][
+                            curr_option_trade_symbol['expiration']].append(
+                            curr_option_trade_symbol)
 
     # When option expires pay the difference Strike and StockPrice
     today_expenses = dict()
@@ -415,11 +460,12 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 def filter_snp_symbols(data, symbols):
     return data[data.UnderlyingSymbol.isin(symbols)].copy()
 
+
 def filter_equity_snp_symbols(data, symbols):
     return data[data.symbol.isin(symbols)].copy()
 
 
-def plot_results(daily_results, ratio_params, bid_ratios, max_batch):
+def plot_results(daily_results, ratio_params, bid_ratios, max_batch, start_time, results_dir):
     dates = sorted(daily_results.keys())
     status_by_bid = dict()
     for curr_bid in bid_ratios:
@@ -455,8 +501,9 @@ def plot_results(daily_results, ratio_params, bid_ratios, max_batch):
                     even = '_even'
                 else:
                     even = ''
-                plt.savefig(f'Results_Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
-                print(f'Saved Results_Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
+                figure_path = os.path.join(results_dir, f'Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
+                plt.savefig(figure_path)
+                print(f'Saved {figure_path}')
 
 
 def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
@@ -468,9 +515,30 @@ def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
     return data
 
 if __name__ == '__main__':
+    global log
+    run_time = datetime.datetime.now()
+    time_text = f'{run_time.year}_{run_time.month:02}_{run_time.day:02}_{run_time.hour:02}_{run_time.minute:02}_' \
+                f'{run_time.second}'
+    results_dir = f'Results_{time_text}'
+    os.makedirs(results_dir)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)'
+                                  's%(thread)d %(message)s')
+    logging.basicConfig(format='%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)s'
+                               ' %(thread)d %(message)s', filename=os.path.join(results_dir,
+                                                                                f'Simulate_{time_text}.log'))
+    """fh = logging.FileHandler(os.path.join(results_dir, f'Simulate_{time_text}.log'))
+    fh.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)"""
+    log = logging.getLogger('SimulateTrade')
+    #log.addHandler(fh)
+    #log.addHandler(ch)
+    log.info("Starting")
     start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
     #process_source_dir(SOURCE_DIR, snp_500_symbols, True)
-    process_source_dir(".\\FilteredCSVs", snp_500_symbols, False)
+    process_source_dir(".\\FilteredCSVs", snp_500_symbols, False, results_dir)
     end_time = time.time()
     print("Processing took", end_time - start_time, "seconds")
