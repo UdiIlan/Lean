@@ -40,13 +40,14 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
     start_time = datetime.datetime.now()
     input_files = []
     total_profit = dict()
+
+    # collect files form sorce folder by the given start_date/end_date
     if not is_compressed:
         input_files = get_csv_files_in_folder(source_dir, start_date, end_date)
     else:
         zip_files = get_zip_files_in_folder(source_dir, start_date, end_date)
         for curr_file in zip_files:
             file_path = os.path.join(source_dir, curr_file)
-            #files_by_zip[file_path] = get_files_from_zip_by_date(file_path)
             files_in_curr_zip = get_files_from_zip_by_date(file_path)
             for curr_zipped_file in files_in_curr_zip:
                 input_files.append({'zip': curr_file, 'data': files_in_curr_zip[curr_zipped_file]})
@@ -54,6 +55,8 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
     day_index = 0
     open_positions = dict()
     daily_status = dict()
+
+    # initialize all simulation parameters data structures
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
         open_positions[curr_stock_ratio] = dict()
         total_profit[curr_stock_ratio] = dict()
@@ -63,9 +66,12 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
             for batch_index in range(MAX_TRADE_BATCH):
                 total_profit[curr_stock_ratio][curr_bid_ratio][batch_index] = 0
                 open_positions[curr_stock_ratio][curr_bid_ratio][batch_index] = dict()
+
     prev_zip = ''
     zip_file_obj = None
     all_trades = {}
+
+    # 
     for input_file in input_files:
         day_index += 1
         options_start = time.time()
@@ -139,7 +145,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
                 log.info(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index} Total profit: '
                       f'{total_profit[curr_stock_ratio][curr_bid_ratio][batch_index]}')
 
-    #log.info("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
+
     log.info("Daily statuses %s", daily_status)
     plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH, start_time, results_dir)
     all_trades_separate_dates = dict()
@@ -147,6 +153,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
         all_trades_separate_dates[curr_stock_ratio] = dict()
         for curr_bid_ratio in BID_RATIO:
             all_trades_separate_dates[curr_stock_ratio][curr_bid_ratio] = dict()
+    
     for curr_date in all_trades:
         for curr_stock_ratio in all_trades[curr_date]:
             for curr_bid_ratio in all_trades[curr_date][curr_stock_ratio]:
@@ -543,6 +550,8 @@ if __name__ == '__main__':
                 f'{run_time.second}'
     results_dir = f'Results_{time_text}'
     os.makedirs(results_dir)
+
+    # set logger
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)s'
                                   ' %(thread)d %(message)s')
     logging.basicConfig(format='%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)s'
@@ -553,12 +562,7 @@ if __name__ == '__main__':
     fh.setFormatter(formatter)
     fh.setLevel(logging.DEBUG)
     log.addHandler(fh)
-    """fh.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)"""
-    #log.addHandler(ch)
+
     log.info("Starting")
     start_time = time.time()
     snp_500_symbols = get_snp_symbols(SNP_SYMBOLS_FILE_PATH)
@@ -567,6 +571,7 @@ if __name__ == '__main__':
     end_date = date.today()
     is_compressed = False
 
+    # read command line arguments
     if len(sys.argv) > 1:
         start_date =  parse_date(sys.argv[1])
         log.info(f'Set simulation start date to: {start_date}')
