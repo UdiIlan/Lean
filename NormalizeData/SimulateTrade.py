@@ -21,12 +21,14 @@ from datetime import date
 from utils import parse_date
 import sys
 
+global log
+
 SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
 TRADE_PER_SYMBOL = 5000
-DAYS_TO_PROCESS = 1
+DAYS_TO_PROCESS = 10000
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 BID_RATIO = [1, 0.5]
@@ -67,10 +69,10 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
     for input_file in input_files:
         day_index += 1
         options_start = time.time()
-        # if day_index > DAYS_TO_PROCESS:
-        #     break
+        if day_index > DAYS_TO_PROCESS:
+             break
         if not is_compressed:
-            print(f'Processing {input_file}')
+            log.info(f'Processing {input_file}')
             _, year, month, day = parse_filename(input_file)
             options_data = pd.read_csv(os.path.join(source_dir, input_file))
         else:
@@ -88,10 +90,11 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
                                                                           EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO,
                                                                           MAX_TRADE_BATCH)
         day_key = datetime.datetime(year=year, month=month, day=day)
+        day_key_str = f'{day:02}/{month:02}/{year}'
         all_trades[f'{day:02}/{month:02}/{year}'] = curr_trade
-        daily_status[day_key] = dict()
+        daily_status[day_key_str] = dict()
         for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
-            daily_status[day_key][curr_stock_ratio] = dict()
+            daily_status[day_key_str][curr_stock_ratio] = dict()
             for curr_bid_ratio in BID_RATIO:
                 for batch_index in range(MAX_TRADE_BATCH):
                     for expiration_date in curr_trade[curr_stock_ratio][curr_bid_ratio][batch_index]:
@@ -107,7 +110,7 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
                         (income - expenses)
 
                     # Going over all of the batches including all open positions that may have existed from before
-                    daily_status[day_key][curr_stock_ratio][curr_bid_ratio] = dict()
+                    daily_status[day_key_str][curr_stock_ratio][curr_bid_ratio] = dict()
                     for batch_index in range(MAX_TRADE_BATCH):
                         # Calculating again because maybe there are more batches because of the open positions
                         income = today_income[curr_stock_ratio][curr_bid_ratio][batch_index]
@@ -120,12 +123,12 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
                         if batch_index in total_profit[curr_stock_ratio][curr_bid_ratio]:
                             profit = total_profit[curr_stock_ratio][curr_bid_ratio][batch_index]
                         current_status = profit - open_positions_cost
-                        print(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: profit for {day}/{month}/{year}'
+                        log.info(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: profit for {day}/{month}/{year}'
                               f' is {income - expenses}, '
                               f'total profit after {day_index} '
                               f'days is {current_status}')
-                        daily_status[day_key][curr_stock_ratio][curr_bid_ratio][batch_index] = current_status
-        print(f'Processing options for {day}/{month}/{year} took {time.time() - options_start} seconds')
+                        daily_status[day_key_str][curr_stock_ratio][curr_bid_ratio][batch_index] = current_status
+        log.info(f'Processing options for {day}/{month}/{year} took {time.time() - options_start} seconds')
 
     # Reduce remaining open positions
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
@@ -133,11 +136,11 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
             for batch_index in total_profit[curr_stock_ratio][curr_bid_ratio]:
                 total_profit[curr_stock_ratio][curr_bid_ratio][batch_index] -= \
                     calc_positions_cost(open_positions[curr_stock_ratio][curr_bid_ratio][batch_index])
-                print(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index} Total profit: '
+                log.info(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index} Total profit: '
                       f'{total_profit[curr_stock_ratio][curr_bid_ratio][batch_index]}')
 
-    #print("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
-    print("Daily statuses", daily_status)
+    #log.info("Daily statuses", json.dumps(daily_status, default=json_date_encoder))
+    log.info("Daily statuses %s", daily_status)
     plot_results(daily_status, EXPECTED_STOCK_CHANGE_RATIO, BID_RATIO, MAX_TRADE_BATCH, start_time, results_dir)
     all_trades_separate_dates = dict()
     for curr_stock_ratio in EXPECTED_STOCK_CHANGE_RATIO:
@@ -162,15 +165,17 @@ def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, star
                                 all_trades_separate_dates[curr_stock_ratio][
                                     curr_bid_ratio][curr_date].append(curr_option)
 
-    print("Daily Trades", json.dumps(all_trades_separate_dates))
-    print("Total profit", json.dumps(total_profit, default=json_date_encoder))
+    with open(f'{os.path.join(results_dir, "DailyStatus.json")}', 'w') as outfile:
+        json.dump(daily_status, outfile, default=myconverter)
+    with open(f'{os.path.join(results_dir, "Trades.json")}', 'w') as outfile:
+        json.dump(all_trades_separate_dates, outfile, default=myconverter)
+    with open(f'{os.path.join(results_dir, "TotalProfit.json")}', 'w') as outfile:
+        json.dump(total_profit, outfile, default=myconverter)
 
 
-def json_date_encoder(o):
-    if isinstance(o, (datetime.date, datetime.datetime)):
-        return f'{o.day:02}/{o.month:02}/{o.year}'
-    else:
-        return o
+def myconverter(o):
+    if isinstance(o, datetime.datetime):
+        return o.__str__()
 
 
 def calc_positions_cost(positions):
@@ -193,7 +198,7 @@ def get_snp_symbols(snp_500_filename):
 
 def get_zip_files(zip_path):
     result = []
-    print(zip_path)
+    log.info(zip_path)
     with zipfile.ZipFile(zip_path, "r") as f:
         for name in f.namelist():
             result.append(name)
@@ -220,7 +225,7 @@ def get_zip_files_in_folder(folder_path, start_date, end_date):
 def get_csv_files_in_folder(folder_path, start_date, end_date):
     result = []
     for filename in os.listdir(folder_path):
-        if '.csv' in filename:
+        if '.csv' in filename and 'option' in filename:
             m = re.search('(.+)_(.+)\.csv', filename)
             date_part = m.group(2)
             year = int(date_part[0:4])
@@ -281,7 +286,7 @@ def get_options_by_iv(options_data):
 
 def process_options_file(options_data, year, month, day, snp_symbols, current_options, ratio_params, bid_ratios,
                          trade_batches):
-    print(f'Handling options for {day}/{month}/{year}')
+    log.info(f'Handling options for {day}/{month}/{year}')
     zip_date = datetime.datetime(year=year, month=month, day=day)
 
     snp_options = filter_snp_symbols(options_data, snp_symbols)  # options_data[options_data.UnderlyingSymbol.isin(snp_symbols)].copy()
@@ -334,7 +339,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
         calls = calls[calls.Strike + calls.Bid > calls.UnderlyingPrice]
         puts = puts[puts.Strike - puts.Bid < puts.UnderlyingPrice]
         if calls.shape[0] == 0 or puts.shape[0] == 0:
-            #print(f'No tradable options for symbol {trade_symbol}')
+            #log.info(f'No tradable options for symbol {trade_symbol}')
             pass
         else:
             #       Start from strike. If stock price increases by K then the option breaks even.
@@ -363,13 +368,13 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 
     for curr_stock_ratio in ratio_params:
         if daily_trades_num[curr_stock_ratio] == 0:
-            print(f'{day}/{month}/{year} Not trading in ratio={curr_stock_ratio}')
+            log.info(f'{day}/{month}/{year} Not trading in ratio={curr_stock_ratio}')
         else:
             trade_index = -1
             batches_in_ratio = int(daily_trades_num[curr_stock_ratio] / DAILY_TRADE_OPTIONS)
             if daily_trades_num[curr_stock_ratio] % DAILY_TRADE_OPTIONS > 0:
                 batches_in_ratio += 1
-            print(f'Trading in {batches_in_ratio} batches for ratio {curr_stock_ratio}, total '
+            log.info(f'Trading in {batches_in_ratio} batches for ratio {curr_stock_ratio}, total '
                   f'{daily_trades_num[curr_stock_ratio]} symbols {len(trade_options_per_ratio[curr_stock_ratio])}')
             for curr_trade in trade_options_per_ratio[curr_stock_ratio]:
                 trade_index += 1
@@ -381,7 +386,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                     if batch_symbols == 0:
                         batch_symbols = DAILY_TRADE_OPTIONS
                 symbol_trade_in_ratio = TRADE_PER_SYMBOL / batch_symbols
-                print(f'{day}/{month}/{year} {trade_index} trading in ratio={curr_stock_ratio} in '
+                log.info(f'{day}/{month}/{year} {trade_index} trading in ratio={curr_stock_ratio} in '
                       f'{batch_symbols} symbols in batch {trade_batch_index + 1}, '
                       f'{symbol_trade_in_ratio} USD per symbol')
                 if trade_batch_index > MAX_TRADE_BATCH:
@@ -408,7 +413,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                         trade_size = int(math.floor((symbol_trade_in_ratio / len(option_trade_symbols)) /
                                                     curr_option_trade_symbol['price']))
                         curr_option_trade_symbol['size'] = trade_size
-                        print(f'{curr_stock_ratio},{curr_bid_ratio},{trade_batch_index}: Writing '
+                        log.info(f'{curr_stock_ratio},{curr_bid_ratio},{trade_batch_index}: Writing '
                               f'{trade_size} * {curr_option_trade_symbol["symbol"]} for '
                               f'{curr_option_trade_symbol["price"]}')
                         today_income[curr_stock_ratio][curr_bid_ratio][trade_batch_index] += \
@@ -435,7 +440,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                         symbol_data = options_data[options_data.UnderlyingSymbol ==
                                                    curr_traded_symbol['underlying_symbol']]
                         if symbol_data.shape[0] == 0:
-                            print(f'{zip_date},{curr_stock_ratio}{curr_bid_ratio}'
+                            log.info(f'{zip_date},{curr_stock_ratio}{curr_bid_ratio}'
                                   f' Missing symbol: {curr_traded_symbol["symbol"]}')
                             missing_symbols.append(curr_traded_symbol['symbol'])
                         else:
@@ -448,7 +453,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                                 pay_per_option = strike_price - underlying_price
                             symbol_expenses = pay_per_option * curr_traded_symbol['size']
                             today_expenses[curr_stock_ratio][curr_bid_ratio][batch_index] += symbol_expenses
-                            print(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: For '
+                            log.info(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: For '
                                   f'{curr_traded_symbol["symbol"]} the underlying price is {underlying_price}, paying '
                                   f'{pay_per_option} for {curr_traded_symbol["size"]} options, total to pay is '
                                   f'{symbol_expenses}')
@@ -462,13 +467,13 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                         if len(current_options[curr_stock_ratio][curr_bid_ratio][batch_index][zip_date]) == 0:
                             del current_options[curr_stock_ratio][curr_bid_ratio][batch_index][zip_date]
 
-    print(f'Summary for {day}/{month}/{year}:')
+    log.info(f'Summary for {day}/{month}/{year}:')
     for curr_stock_ratio in ratio_params:
         for curr_bid_ratio in bid_ratios:
             for batch_index in range(trade_batches):
                 income = today_income[curr_stock_ratio][curr_bid_ratio][batch_index]
                 expenses = today_expenses[curr_stock_ratio][curr_bid_ratio][batch_index]
-            print(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: income: {income},'
+            log.info(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: income: {income},'
                   f' expenses {expenses}, '
                   f'daily total: {income - expenses}')
 
@@ -521,7 +526,7 @@ def plot_results(daily_results, ratio_params, bid_ratios, max_batch, start_time,
                     even = ''
                 figure_path = os.path.join(results_dir, f'Bid_{curr_bid}_Batch_{batch_index + 1}{even}.png')
                 plt.savefig(figure_path)
-                print(f'Saved {figure_path}')
+                log.info(f'Saved {figure_path}')
 
 
 def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
@@ -533,25 +538,26 @@ def filter_tradable_options(data, trade_date, min_days, max_days, maximum_iv):
     return data
 
 if __name__ == '__main__':
-    global log
     run_time = datetime.datetime.now()
     time_text = f'{run_time.year}_{run_time.month:02}_{run_time.day:02}_{run_time.hour:02}_{run_time.minute:02}_' \
                 f'{run_time.second}'
     results_dir = f'Results_{time_text}'
     os.makedirs(results_dir)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)'
-                                  's%(thread)d %(message)s')
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)s'
+                                  ' %(thread)d %(message)s')
     logging.basicConfig(format='%(asctime)s %(levelname)s %(filename)s(%(lineno)d) %(funcName)s %(threadName)s'
-                               ' %(thread)d %(message)s', filename=os.path.join(results_dir,
-                                                                                f'Simulate_{time_text}.log'))
-    """fh = logging.FileHandler(os.path.join(results_dir, f'Simulate_{time_text}.log'))
+                               ' %(thread)d %(message)s')
+    log = logging.getLogger('SimulateTrade')
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(os.path.join(results_dir, f'Simulate_{time_text}.log'))
+    fh.setFormatter(formatter)
     fh.setLevel(logging.DEBUG)
+    log.addHandler(fh)
+    """fh.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)"""
-    log = logging.getLogger('SimulateTrade')
-    #log.addHandler(fh)
     #log.addHandler(ch)
     log.info("Starting")
     start_time = time.time()
@@ -563,10 +569,10 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         start_date =  parse_date(sys.argv[1])
-        print(f'Set simulation start date to: {start_date}')
+        log.info(f'Set simulation start date to: {start_date}')
     if len(sys.argv) > 2:
         end_date = parse_date(sys.argv[2])
-        print(f'Set simulation end date to: {end_date}')
+        log.info(f'Set simulation end date to: {end_date}')
     if len(sys.argv) > 3:
         is_compressed = bool(sys.argv[3].lower())
 
@@ -575,4 +581,4 @@ if __name__ == '__main__':
     process_source_dir(src_dir, snp_500_symbols, is_compressed, results_dir, start_date, end_date)
 
     end_time = time.time()
-    print("Processing took", end_time - start_time, "seconds")
+    log.info("Processing took %s seconds", str(end_time - start_time))
