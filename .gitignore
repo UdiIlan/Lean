@@ -268,3 +268,4 @@ Launcher/Plugins/*
 NormalizeData/**/*.zip
 NormalizeData/**/*.csv
 NormalizeData/**/*.png
+NormalizeData/Results*
