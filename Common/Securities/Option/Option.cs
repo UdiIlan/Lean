@@ -405,5 +405,7 @@ namespace QuantConnect.Securities.Option
 
             base.SetDataNormalizationMode(mode);
         }
+
+        decimal IOptionPrice.IV { get; set; }
     }
 }

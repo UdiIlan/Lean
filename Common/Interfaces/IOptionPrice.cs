@@ -40,5 +40,11 @@ namespace QuantConnect.Interfaces
         /// <returns>An instance of <see cref="OptionPriceModelResult"/> containing the theoretical
         /// price of the specified option contract</returns>
         OptionPriceModelResult EvaluatePriceModel(Slice slice, OptionContract contract);
+
+        /// <summary>
+        /// Get/Set IV 
+        /// </summary>
+        decimal IV { get; set; }
+
     }
 }

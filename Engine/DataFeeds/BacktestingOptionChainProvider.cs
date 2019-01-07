@@ -46,7 +46,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var canonicalSymbol = Symbol.CreateOption(symbol.Value, symbol.ID.Market, default(OptionStyle), default(OptionRight), 0, SecurityIdentifier.DefaultDate);
 
             // build the zip file name for open interest data
-            var zipFileName = LeanData.GenerateZipFilePath(Globals.DataFolder, canonicalSymbol, date, Resolution.Minute, TickType.OpenInterest);
+            var zipFileName = LeanData.GenerateZipFilePath(Globals.DataFolder, canonicalSymbol, date, Resolution.Daily, TickType.OpenInterest);
 
             if (!File.Exists(zipFileName))
             {
@@ -58,7 +58,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var zipEntryNames = Compression.GetZipEntryFileNames(zipFileName);
             foreach (var zipEntryName in zipEntryNames)
             {
-                yield return LeanData.ReadSymbolFromZipEntry(canonicalSymbol, Resolution.Minute, zipEntryName);
+                yield return LeanData.ReadSymbolFromZipEntry(canonicalSymbol, Resolution.Daily, zipEntryName);
             }
         }
     }

@@ -322,6 +322,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     AskSize = (long)security.AskSize,
                     OpenInterest = security.OpenInterest,
                     UnderlyingLastPrice = chain.Underlying.Price
+                    IV = option.IV
                 };
 
                 chain.Contracts[baseData.Symbol] = contract;

@@ -171,5 +171,13 @@ namespace QuantConnect.Data.Market
         /// A string that represents the current object.
         /// </returns>
         public override string ToString() => Symbol.Value;
+
+        /// <summary>
+        /// Get/Set the IV
+        /// </summary>
+        public decimal IV
+        {
+           get; set;
+        }
     }
 }

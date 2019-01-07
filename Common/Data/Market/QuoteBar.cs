@@ -456,7 +456,12 @@ namespace QuantConnect.Data.Market
                 Symbol = config.Symbol
             };
 
+            int csvLength = 10;
+            if (config.SecurityType == SecurityType.Option) csvLength = 11;
+            var csv = line.ToCsv(csvLength);
             var csv = line.ToCsv(10);
+
+            
             if (config.Resolution == Resolution.Daily || config.Resolution == Resolution.Hour)
             {
                 // hourly and daily have different time format, and can use slow, robust c# parser.
@@ -504,6 +509,8 @@ namespace QuantConnect.Data.Market
 
             quoteBar.Value = quoteBar.Close;
 
+            if (config.SecurityType == SecurityType.Option) quoteBar.IV = csv[10].ToDecimal();
+
             return quoteBar;
         }
 
@@ -548,6 +555,7 @@ namespace QuantConnect.Data.Market
                 Period = Period,
                 Value = Value,
                 DataType = DataType
+                IV = IV
             };
         }
 
@@ -563,6 +571,14 @@ namespace QuantConnect.Data.Market
             {
                 Period = Period
             };
+        }
+
+        /// <summary>
+        /// Get/Set the IV
+        /// </summary>
+        public decimal IV
+        {
+           get; set;
         }
     }
 }
