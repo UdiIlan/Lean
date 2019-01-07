@@ -23,7 +23,7 @@ import sys
 
 global log
 
-STOCK_FILES_DIR = '.\\FilteredCSVs'
+STOCK_FILES_DIR = '.\\2013'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
@@ -35,6 +35,7 @@ BID_RATIO = [1, 0.5]
 MAX_TRADE_BATCH = 1
 MAX_SYMBOLS_TO_CHECK = 300
 ASSUME_SPLIT_RATIO = 0.55
+WRITE_OPTIONS_FEE = 1.01
 
 
 def process_source_dir(source_dir, snp_symbols, is_compressed, results_dir, start_date, end_date):
@@ -458,7 +459,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                                      f'{curr_option_trade_symbol["price"]}')
                             #log.info(f'{curr_stock_ratio} {curr_bid_ratio} {trade_batch_index} {trade_index} {today_income}')
                             today_income[curr_stock_ratio][curr_bid_ratio][trade_batch_index] += \
-                                curr_option_trade_symbol['price'] * trade_size
+                                curr_option_trade_symbol['price'] * trade_size - WRITE_OPTIONS_FEE
                             if curr_option_trade_symbol['expiration'] not in \
                                     all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index]:
                                 all_today_trade[curr_stock_ratio][curr_bid_ratio][trade_batch_index][
@@ -505,7 +506,6 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
 
                             if symbol_data.shape[0] == 0 or symbol_data['UnderlyingPrice'].iloc[0] / \
                                     curr_traded_symbol['underlying_price'] < ASSUME_SPLIT_RATIO:
-                            #if symbol_data.shape[0] == 0: # TODO: avoid splits
                                 price_available = False
                                 log.info(f'{zip_date},{curr_stock_ratio}{curr_bid_ratio}'
                                          f' Assuming split on symbol: {curr_traded_symbol["underlying_symbol"]}')
@@ -513,7 +513,11 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                                               curr_traded_symbol)
                                 #missing_symbols.append(curr_traded_symbol['symbol'])
                                 underlying_price = 'UNKOWN'
-                        if price_available:
+                        add_fee = 0
+                        if not price_available:
+                            # Reducing the fee from the expenses so it's "refunded" when we roll back the options
+                            add_fee = WRITE_OPTIONS_FEE
+                        else:
                             pay_per_option = 0
                             if not underlying_price:
                                 underlying_price = symbol_data['UnderlyingPrice'].iloc[0]
@@ -522,7 +526,7 @@ def process_options_file(options_data, year, month, day, snp_symbols, current_op
                                 pay_per_option = underlying_price - strike_price
                             elif curr_traded_symbol['type'] == 'put' and underlying_price < strike_price:
                                 pay_per_option = strike_price - underlying_price
-                        symbol_expenses = pay_per_option * curr_traded_symbol['size']
+                        symbol_expenses = pay_per_option * curr_traded_symbol['size'] - add_fee
                         today_expenses[curr_stock_ratio][curr_bid_ratio][batch_index] += symbol_expenses
                         log.info(f'{curr_stock_ratio},{curr_bid_ratio},{batch_index}: For '
                                  f'{curr_traded_symbol["symbol"]} the underlying price is {underlying_price}, paying '
