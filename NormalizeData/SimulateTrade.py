@@ -24,7 +24,6 @@ import sys
 global log
 
 STOCK_FILES_DIR = '.\\FilteredCSVs'
-SOURCE_DIR = '.\\Source'
 SNP_SYMBOLS_FILE_PATH = ".\\snp500.txt"
 DAILY_TRADE_OPTIONS = 5
 PRICE_FACTOR = 1
@@ -32,7 +31,7 @@ TRADE_PER_SYMBOL = 5000
 DAYS_TO_PROCESS = 10000
 MINIMUM_BID = 0.5
 EXPECTED_STOCK_CHANGE_RATIO = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
-BID_RATIO = [0.5]#[1, 0.5]
+BID_RATIO = [1, 0.5]
 MAX_TRADE_BATCH = 1
 MAX_SYMBOLS_TO_CHECK = 300
 ASSUME_SPLIT_RATIO = 0.55
@@ -672,7 +671,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 3:
         is_compressed = bool(sys.argv[3].lower())
 
-    src_dir = ".\\FilteredCSVs_ziped" if is_compressed else ".\\FilteredCSVs"
+    src_dir = ".\\FilteredCSVs_zipped" if is_compressed else ".\\FilteredCSVs"
 
     process_source_dir(src_dir, snp_500_symbols, is_compressed, results_dir, start_date, end_date)
 
