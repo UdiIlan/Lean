@@ -14,7 +14,7 @@ if __name__ == '__main__':
     archive_results = False
     if len(sys.argv) > 1:
         src_dir = sys.argv[1]
-     if len(sys.argv) > 2:
+    if len(sys.argv) > 2:
         archive_results = bool(sys.argv[2].lower())
 
     start_time = time.time()
