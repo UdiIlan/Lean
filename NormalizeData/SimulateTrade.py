@@ -214,14 +214,13 @@ def get_snp_symbols(snp_500_filename):
 
 def get_zip_files(zip_path):
     result = []
-    log.info(zip_path)
     with zipfile.ZipFile(zip_path, "r") as f:
         for name in f.namelist():
             result.append(name)
     return result
 
 
-def get_zip_files_in_folder(folder_path, start_date, end_date):
+def get_zip_files_in_folder(folder_path,, start_date=None, end_date=None):
     result = []
     for filename in os.listdir(folder_path):
         if '.zip' in filename:
